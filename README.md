@@ -38,10 +38,18 @@ npm install
 ```
 
 ### 2. Rodar testes
-Executa os testes automatizados com Jest e Supertest (não depende do MongoDB ativo para o healthcheck):
-```bash
-npm test
-```
+- **Testes Unitários (sem necessidade de banco ativo):**
+  ```bash
+  npm test
+  ```
+- **Testes de Integração (requer MongoDB ativo):**
+  ```bash
+  npm run test:integration
+  ```
+- **Todos os testes:**
+  ```bash
+  npm run test:all
+  ```
 
 ### 3. Iniciar servidor
 ```bash
@@ -100,20 +108,12 @@ docker run -d \
 
 ---
 
-## Pipeline de CI (GitHub Actions)
+## Pipelines de CI (GitHub Actions)
 
-O arquivo [`.github/workflows/ci.yml`](.github/workflows/ci.yml) é executado automaticamente a cada `push` e `pull_request` direcionados às branches `main` e `master`.
+### 1. `CI` ([`.github/workflows/ci.yml`](.github/workflows/ci.yml))
+- Executa testes unitários isolados (`npm test`).
+- Valida o build da imagem de produção via Docker Buildx.
 
-### Etapas do Pipeline:
-
-1. **Job `test` (Testes Unitários e Integração):**
-   - Faz checkout do código.
-   - Configura o Node.js na versão 20 (com cache do npm).
-   - Executa `npm ci` para instalar dependências exatas.
-   - Roda `npm test` para validar os endpoints (ex.: `/health`).
-
-2. **Job `docker` (Validação do Build Docker):**
-   - Depende do sucesso do job `test`.
-   - Inicializa o Docker Buildx.
-   - Executa um build de teste da imagem usando o [`Dockerfile`](Dockerfile) multi-stage (`push: false`).
-   - Garante que nenhuma alteração de código ou dependência quebrou a construção do container de produção.
+### 2. `Integration & Mock DB Tests` ([`.github/workflows/mock.yml`](.github/workflows/mock.yml))
+- Sobe um container de serviço do MongoDB (`mongo:7`) nativo no GitHub Actions.
+- Executa `npm run test:integration` contra o banco em container para validar operações reais de persistência (`user.save()`, hash do bcrypt no banco, índices únicos).
