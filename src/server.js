@@ -1,10 +1,26 @@
 require('dotenv').config({ quiet: true });
 const express = require('express');
+const cors = require('cors');
 const mongoose = require('mongoose');
 const authRoutes = require('./routes/auth');
 const { swaggerUi, swaggerSpec, swaggerMarkdown, swaggerMarkdownHtml } = require('./config/swagger');
 
 const app = express();
+
+// Configuração de CORS (suporta '*', múltiplas origens separadas por vírgula em prod/pre-prod)
+const corsOrigins = process.env.CORS_ORIGIN
+  ? process.env.CORS_ORIGIN.split(',').map((o) => o.trim())
+  : '*';
+
+app.use(
+  cors({
+    origin: corsOrigins === '*' ? '*' : corsOrigins,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+    credentials: corsOrigins !== '*',
+  })
+);
+
 app.use(express.json());
 
 // Documentação da API

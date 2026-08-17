@@ -9,6 +9,25 @@ describe('Health check', () => {
   });
 });
 
+describe('CORS Configuration', () => {
+  it('deve responder aos headers de CORS em requisições de origem cruzada', async () => {
+    const res = await request(app)
+      .options('/health')
+      .set('Origin', 'http://localhost:3000')
+      .set('Access-Control-Request-Method', 'GET');
+
+    expect(res.headers['access-control-allow-origin']).toBeDefined();
+  });
+
+  it('deve incluir o header access-control-allow-origin em requisições GET padrão', async () => {
+    const res = await request(app)
+      .get('/health')
+      .set('Origin', 'http://localhost:3000');
+
+    expect(res.headers['access-control-allow-origin']).toBeDefined();
+  });
+});
+
 describe('Swagger Documentation', () => {
   it('deve responder com sucesso na rota /docs/', async () => {
     const res = await request(app).get('/docs/');
