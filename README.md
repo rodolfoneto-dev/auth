@@ -137,3 +137,38 @@ docker run -d \
 ### 2. `Integration & Mock DB Tests` ([`.github/workflows/mock.yml`](.github/workflows/mock.yml))
 - Sobe um container de serviço do MongoDB (`mongo:7`) nativo no GitHub Actions.
 - Executa `npm run test:integration` contra o banco em container para validar operações reais de persistência (`user.save()`, hash do bcrypt no banco, índices únicos).
+
+---
+
+## Servidor MCP (Model Context Protocol) para Agentes de IA
+
+O microsserviço `auth` inclui um servidor MCP nativo ([`src/mcp/server.js`](src/mcp/server.js)) permitindo que agentes de IA (Claude Desktop, Cursor, Antigravity) executem ações e consultem contratos diretamente.
+
+### Recursos & Tools disponíveis via MCP:
+
+- **Resources:**
+  - `auth://contract.md`: Documentação completa em Markdown.
+  - `auth://openapi.json`: Especificação OpenAPI 3.0 estruturada em JSON.
+- **Tools:**
+  - `auth_generate_dev_token`: Gera tokens JWT de teste (`aluno`, `professor`, `admin`) para desenvolvimento dos outros módulos sem precisar de login manual.
+  - `auth_validate_token`: Inspeciona e valida a integridade de qualquer token JWT.
+  - `auth_get_role_permissions`: Retorna a matriz de permissões RBAC por módulo.
+
+### Como plugar no Claude Desktop / Cursor / Antigravity
+
+Adicione nas configurações do seu cliente MCP:
+
+```json
+{
+  "mcpServers": {
+    "auth": {
+      "command": "node",
+      "args": ["/caminho/absoluto/para/auth/src/mcp/server.js"],
+      "env": {
+        "JWT_SECRET": "sua_chave_secreta"
+      }
+    }
+  }
+}
+```
+
