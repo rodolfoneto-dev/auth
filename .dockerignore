@@ -1,0 +1,15 @@
+node_modules
+npm-debug.log
+.env
+.env.*
+.git
+.gitignore
+.github
+.trae
+*.test.js
+__tests__
+coverage
+Dockerfile
+.dockerignore
+GEMINI.md
+README.md
