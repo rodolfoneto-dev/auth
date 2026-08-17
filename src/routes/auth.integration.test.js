@@ -144,4 +144,60 @@ describe('Auth Routes - Integration Tests', () => {
       expect(res.body.error).toBe('Email e senha são obrigatórios');
     });
   });
+
+  describe('GET /auth/validate', () => {
+    it('deve validar token correto e retornar 200 com payload do usuário', async () => {
+      const registerRes = await request(app)
+        .post('/auth/register')
+        .send({
+          name: 'Professor Teste',
+          email: 'prof@example.com',
+          password: 'password123',
+          role: 'professor',
+        });
+
+      const token = registerRes.body.token;
+
+      const validateRes = await request(app)
+        .get('/auth/validate')
+        .set('Authorization', `Bearer ${token}`);
+
+      expect(validateRes.statusCode).toBe(200);
+      expect(validateRes.body.valid).toBe(true);
+      expect(validateRes.body.user.id).toBe(registerRes.body.user._id);
+      expect(validateRes.body.user.role).toBe('professor');
+    });
+
+    it('deve retornar 401 ao tentar validar sem token', async () => {
+      const res = await request(app).get('/auth/validate');
+
+      expect(res.statusCode).toBe(401);
+      expect(res.body.error).toBe('Token não fornecido ou formato inválido');
+    });
+  });
+
+  describe('GET /auth/me', () => {
+    it('deve retornar dados completos do perfil do usuário autenticado', async () => {
+      const registerRes = await request(app)
+        .post('/auth/register')
+        .send({
+          name: 'Aluno Teste',
+          email: 'aluno@example.com',
+          password: 'password123',
+          role: 'aluno',
+        });
+
+      const token = registerRes.body.token;
+
+      const meRes = await request(app)
+        .get('/auth/me')
+        .set('Authorization', `Bearer ${token}`);
+
+      expect(meRes.statusCode).toBe(200);
+      expect(meRes.body.user.name).toBe('Aluno Teste');
+      expect(meRes.body.user.email).toBe('aluno@example.com');
+      expect(meRes.body.user.role).toBe('aluno');
+      expect(meRes.body.user.password).toBeUndefined();
+    });
+  });
 });

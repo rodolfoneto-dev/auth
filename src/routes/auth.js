@@ -1,6 +1,7 @@
 const express = require('express');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const { authenticate, checkRole } = require('../middlewares/auth');
 
 const router = express.Router();
 
@@ -75,6 +76,27 @@ router.post('/login', async (req, res) => {
     return res.status(200).json({ user, token });
   } catch (err) {
     return res.status(500).json({ error: 'Erro interno ao realizar login' });
+  }
+});
+
+// GET /validate - Validação de token para outros microsserviços
+router.get('/validate', authenticate, (req, res) => {
+  return res.status(200).json({
+    valid: true,
+    user: req.user,
+  });
+});
+
+// GET /me - Consulta dos dados completos do usuário logado
+router.get('/me', authenticate, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({ error: 'Usuário não encontrado' });
+    }
+    return res.status(200).json({ user });
+  } catch (err) {
+    return res.status(500).json({ error: 'Erro interno ao buscar perfil' });
   }
 });
 
