@@ -55,11 +55,11 @@ jobs:
             }
 
             const data = JSON.parse(fs.readFileSync("jest-integration-results.json", "utf8"));
-            const totalSuites = data.numTotalTestSuites;
-            const passedSuites = data.numPassedTestSuites;
-            const totalTests = data.numTotalTests;
-            const passedTests = data.numPassedTests;
-            const failedTests = data.numFailedTests;
+            const totalSuites = data.numTotalTestSuites || 0;
+            const passedSuites = data.numPassedTestSuites || 0;
+            const totalTests = data.numTotalTests || 0;
+            const passedTests = data.numPassedTests || 0;
+            const failedTests = data.numFailedTests || 0;
             const isSuccess = data.success;
             const statusBadge = isSuccess ? "✅ **TODOS OS TESTES PASSARAM**" : "❌ **FALHAS ENCONTRADAS NOS TESTES**";
 
@@ -73,15 +73,18 @@ jobs:
             md += `| ❌ **Falhas** | **${failedTests}** |\n\n`;
 
             md += `### 📋 Detalhes das Execuções\n\n`;
-            data.testResults.forEach(suite => {
-              const suitePath = suite.testFilePath.replace(process.cwd() + "/", "");
+            (data.testResults || []).forEach(suite => {
+              const rawPath = suite.name || suite.testFilePath || "Test Suite";
+              const suitePath = rawPath.replace(process.cwd() + "/", "");
               const suiteIcon = suite.status === "passed" ? "✅" : "❌";
-              const duration = ((suite.perfStats.end - suite.perfStats.start) / 1000).toFixed(2);
+              const duration = (suite.endTime && suite.startTime) 
+                ? ((suite.endTime - suite.startTime) / 1000).toFixed(2) 
+                : "0.00";
               md += `#### ${suiteIcon} \`${suitePath}\` (${duration}s)\n\n`;
 
-              suite.assertionResults.forEach(test => {
+              (suite.assertionResults || []).forEach(test => {
                 const icon = test.status === "passed" ? "✔️" : "❌";
-                const suiteHierarchy = test.ancestorTitles.join(" › ");
+                const suiteHierarchy = (test.ancestorTitles || []).join(" › ");
                 const title = suiteHierarchy ? `**${suiteHierarchy}** › ${test.title}` : test.title;
                 md += `- ${icon} ${title} *(${test.duration || 0}ms)*\n`;
 
