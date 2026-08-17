@@ -4,6 +4,7 @@ const { McpServer } = require('@modelcontextprotocol/sdk/server/mcp.js');
 const { StdioServerTransport } = require('@modelcontextprotocol/sdk/server/stdio.js');
 const { z } = require('zod');
 const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
 const { swaggerMarkdown, swaggerSpec } = require('../config/swagger');
 
 // Inicializa servidor MCP
@@ -16,14 +17,14 @@ const server = new McpServer({
 // Resources: Exposição de Documentação & Contratos
 // ==========================================
 
-// Resource: Contrato em Markdown completo
+// Resource: Contrato em Markdown completo (atualizado dinamicamente)
 server.registerResource(
   'auth-contract-markdown',
   'auth://contract.md',
   {
     title: 'Contrato da API Auth (Markdown)',
     description:
-      'Documentação completa de endpoints, payloads e respostas do serviço de autenticação para IAs e desenvolvedores.',
+      'Documentação completa de endpoints, payloads, respostas e fluxos de e-mail do serviço de autenticação para IAs e desenvolvedores.',
     mimeType: 'text/markdown',
   },
   async (uri) => ({
@@ -36,13 +37,13 @@ server.registerResource(
   })
 );
 
-// Resource: Especificação OpenAPI em JSON
+// Resource: Especificação OpenAPI em JSON (atualizada dinamicamente)
 server.registerResource(
   'auth-contract-json',
   'auth://openapi.json',
   {
     title: 'Especificação OpenAPI do Auth (JSON)',
-    description: 'Schema OpenAPI 3.0 estruturado em JSON com todos os endpoints e schemas.',
+    description: 'Schema OpenAPI 3.0 estruturado em JSON com todos os endpoints, schemas e segurança.',
     mimeType: 'application/json',
   },
   async (uri) => ({
@@ -59,25 +60,29 @@ server.registerResource(
 // Tools: Ferramentas de IA para Desenvolvimento e Testes
 // ==========================================
 
-// Tool 1: Gerar token de desenvolvimento na hora (sem bater no banco)
+// Tool 1: Gerar token JWT de desenvolvimento (com controle de role e emailVerified)
 server.registerTool(
   'auth_generate_dev_token',
   {
     description:
-      'Gera um token JWT válido assinado com o JWT_SECRET do projeto para simular usuários autenticados (aluno, professor, admin) durante desenvolvimento e testes de outros módulos (academy, adm, comms, etc.).',
+      'Gera um token JWT válido assinado com o JWT_SECRET do projeto para simular usuários autenticados (aluno, professor, admin) e status de e-mail (verificado ou pendente) durante desenvolvimento e testes de outros módulos (academy, adm, comms, etc.).',
     inputSchema: {
-      userId: z.string().optional().describe('ID do usuário (opcional, padrão: mockId123)'),
+      userId: z.string().optional().describe('ID do usuário (opcional, padrão: dev_user_mock_123)'),
       role: z
         .enum(['aluno', 'professor', 'admin'])
         .default('aluno')
         .describe('Papel do usuário no sistema'),
+      emailVerified: z
+        .boolean()
+        .default(true)
+        .describe('Status de confirmação do e-mail do usuário'),
       expiresIn: z.string().default('7d').describe('Tempo de expiração (ex: 1h, 7d)'),
     },
   },
-  async ({ userId = 'dev_user_mock_123', role = 'aluno', expiresIn = '7d' }) => {
+  async ({ userId = 'dev_user_mock_123', role = 'aluno', emailVerified = true, expiresIn = '7d' }) => {
     try {
       const secret = process.env.JWT_SECRET || 'dev_secret_jwt';
-      const token = jwt.sign({ id: userId, role }, secret, { expiresIn });
+      const token = jwt.sign({ id: userId, role, emailVerified }, secret, { expiresIn });
 
       return {
         content: [
@@ -88,6 +93,7 @@ server.registerTool(
                 success: true,
                 role,
                 userId,
+                emailVerified,
                 token,
                 authorizationHeader: `Bearer ${token}`,
                 instructions: `Use no header HTTP: Authorization: Bearer ${token}`,
@@ -112,7 +118,7 @@ server.registerTool(
   'auth_validate_token',
   {
     description:
-      'Valida a assinatura de um token JWT e decodifica o payload ({ id, role, exp }) utilizando a chave JWT_SECRET configurada.',
+      'Valida a assinatura de um token JWT e decodifica o payload ({ id, role, emailVerified, exp }) utilizando a chave JWT_SECRET configurada.',
     inputSchema: {
       token: z.string().describe('Token JWT (com ou sem prefixo Bearer)'),
     },
@@ -163,7 +169,41 @@ server.registerTool(
   }
 );
 
-// Tool 3: Obter matriz de regras e permissões (RBAC) dos papéis
+// Tool 3: Gerar link/token de confirmação de e-mail para testes
+server.registerTool(
+  'auth_create_email_verification_link',
+  {
+    description: 'Gera um token de uso único de 64 caracteres hex e monta o link de teste para /auth/verify-email?token=...',
+    inputSchema: {
+      baseUrl: z.string().optional().describe('URL base do servidor (opcional, padrão: http://localhost:4000)'),
+    },
+  },
+  async ({ baseUrl = 'http://localhost:4000' }) => {
+    const rawToken = crypto.randomBytes(32).toString('hex');
+    const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex');
+    const verifyUrl = `${baseUrl}/auth/verify-email?token=${rawToken}`;
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: JSON.stringify(
+            {
+              rawToken,
+              tokenHash,
+              verifyUrl,
+              testCommand: `curl "${verifyUrl}"`,
+            },
+            null,
+            2
+          ),
+        },
+      ],
+    };
+  }
+);
+
+// Tool 4: Obter matriz de regras e permissões (RBAC) dos papéis
 server.registerTool(
   'auth_get_role_permissions',
   {

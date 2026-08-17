@@ -173,9 +173,9 @@ router.post('/register', async (req, res) => {
  *       500:
  *         description: Erro interno do servidor
  */
-router.get('/verify-email', async (req, res) => {
+const handleVerifyEmail = async (req, res) => {
   try {
-    const { token } = req.query;
+    const token = req.query.token || req.body?.token;
 
     if (!token) {
       return res.status(400).json({ error: 'Token de verificação é obrigatório' });
@@ -210,7 +210,10 @@ router.get('/verify-email', async (req, res) => {
   } catch (err) {
     return res.status(500).json({ error: 'Erro interno ao verificar e-mail' });
   }
-});
+};
+
+router.get('/verify-email', handleVerifyEmail);
+router.post('/verify-email', handleVerifyEmail);
 
 /**
  * @openapi
