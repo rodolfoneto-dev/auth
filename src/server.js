@@ -7,19 +7,8 @@ const { swaggerUi, swaggerSpec, swaggerMarkdown, swaggerMarkdownHtml } = require
 
 const app = express();
 
-// Configuração de CORS (suporta '*', múltiplas origens separadas por vírgula em prod/pre-prod)
-const corsOrigins = process.env.CORS_ORIGIN
-  ? process.env.CORS_ORIGIN.split(',').map((o) => o.trim())
-  : '*';
-
-app.use(
-  cors({
-    origin: corsOrigins === '*' ? '*' : corsOrigins,
-    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
-    credentials: corsOrigins !== '*',
-  })
-);
+// CORS simplificado para desenvolvimento/testes isolados (a política real de CORS é gerenciada pelo Edge Gateway)
+app.use(cors());
 
 app.use(express.json());
 
