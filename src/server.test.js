@@ -16,15 +16,22 @@ describe('Swagger Documentation', () => {
     expect(res.text).toContain('Swagger UI');
   });
 
-  it('deve retornar o JSON cru da especificação OpenAPI em /docs.json', async () => {
-    const res = await request(app).get('/docs.json');
+  it('deve retornar a documentação em formato Markdown em /docs.md', async () => {
+    const res = await request(app).get('/docs.md');
     expect(res.statusCode).toBe(200);
-    expect(res.body.openapi).toBe('3.0.0');
-    expect(res.body.info.title).toBe('Auth Service API');
-    expect(res.body.paths['/auth/register']).toBeDefined();
-    expect(res.body.paths['/auth/login']).toBeDefined();
-    expect(res.body.paths['/auth/validate']).toBeDefined();
-    expect(res.body.paths['/auth/me']).toBeDefined();
+    expect(res.headers['content-type']).toContain('text/markdown');
+    expect(res.text).toContain('# Auth Service API');
+    expect(res.text).toContain('/auth/register');
+    expect(res.text).toContain('/auth/login');
+    expect(res.text).toContain('/auth/validate');
+    expect(res.text).toContain('/auth/me');
+  });
+
+  it('deve renderizar a página de visualização Markdown em /docs/preview', async () => {
+    const res = await request(app).get('/docs/preview');
+    expect(res.statusCode).toBe(200);
+    expect(res.text).toContain('Auth API - Markdown Docs');
+    expect(res.text).toContain('Copiar Markdown para Prompt IA');
   });
 });
 

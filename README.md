@@ -59,17 +59,22 @@ O servidor aguardará a conexão com o MongoDB antes de abrir a porta HTTP (`POR
 
 ---
 
-## Documentação Interativa da API (Swagger / OpenAPI)
+## Documentação e Contrato da API (Swagger & Markdown)
 
-Com o servidor rodando, acesse no navegador:
-- **URL Swagger UI:** [http://localhost:4000/docs](http://localhost:4000/docs)
-- **JSON OpenAPI (Spec para IAs / Ferramentas):** [http://localhost:4000/docs.json](http://localhost:4000/docs.json)
+Com o servidor rodando, escolha o formato de visualização:
 
-Contém o contrato completo, payloads de requisição, exemplos e testes interativos para:
-- `POST /auth/register`
-- `POST /auth/login`
-- `GET /auth/validate` (autenticado)
-- `GET /auth/me` (autenticado)
+| Rota | Formato | Finalidade |
+| :--- | :--- | :--- |
+| **[`/docs`](http://localhost:4000/docs)** | Swagger UI Interativo | Testar requisições diretamente pelo navegador |
+| **[`/docs/preview`](http://localhost:4000/docs/preview)** | Visualizador Markdown Web | Interface limpa com botão de 1 clique para copiar prompt de IA |
+| **[`/docs.md`](http://localhost:4000/docs.md)** | Raw Markdown (`text/markdown`) | Consumo via `curl` ou prompt para IAs (Claude, ChatGPT, Gemini) |
+| **[`/docs.json`](http://localhost:4000/docs.json)** | OpenAPI 3.0 JSON | Geração de SDKs e ferramentas de automação |
+
+Endpoints documentados:
+- `POST /auth/register` (público)
+- `POST /auth/login` (público)
+- `GET /auth/validate` (autenticado com Bearer JWT)
+- `GET /auth/me` (autenticado com Bearer JWT)
 
 
 ---
