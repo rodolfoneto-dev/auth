@@ -142,7 +142,7 @@ docker run -d \
 
 ## Servidor MCP (Model Context Protocol) para Agentes de IA
 
-O microsserviço `auth` inclui um servidor MCP nativo ([`src/mcp/server.js`](src/mcp/server.js)) permitindo que agentes de IA (Claude Desktop, Cursor, Antigravity) executem ações e consultem contratos diretamente.
+O microsserviço `auth` inclui um servidor MCP nativo ([`ai/mcp/server.js`](ai/mcp/server.js)) permitindo que agentes de IA (Claude Desktop, Cursor, Antigravity) executem ações e consultem contratos diretamente.
 
 ### Recursos & Tools disponíveis via MCP:
 
@@ -163,7 +163,7 @@ Consulte o arquivo de exemplo pronto [`mcp.config.example.json`](mcp.config.exam
   "mcpServers": {
     "auth-service": {
       "command": "node",
-      "args": ["/caminho/absoluto/para/auth/src/mcp/server.js"],
+      "args": ["/caminho/absoluto/para/auth/ai/mcp/server.js"],
       "env": {
         "JWT_SECRET": "sua_chave_secreta",
         "PORT": "4000"

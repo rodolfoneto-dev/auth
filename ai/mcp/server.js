@@ -8,7 +8,7 @@ const { StdioServerTransport } = require('@modelcontextprotocol/sdk/server/stdio
 const { z } = require('zod');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
-const { swaggerMarkdown, swaggerSpec } = require('../config/swagger');
+const { swaggerMarkdown, swaggerSpec } = require('../../src/config/swagger');
 
 // Inicializa servidor MCP
 const server = new McpServer({

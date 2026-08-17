@@ -8,7 +8,7 @@
     "test:unit": "jest --testPathIgnorePatterns=integration",
     "test:integration": "jest --testPathPatterns=integration --runInBand",
     "test:all": "jest --runInBand",
-    "mcp": "node src/mcp/server.js"
+    "mcp": "node ai/mcp/server.js"
   },
   "keywords": [],
   "author": "",
