@@ -1,5 +1,8 @@
 #!/usr/bin/env node
-require('dotenv').config();
+require('dotenv').config({ quiet: true });
+// Em servidores MCP com transporte stdio, stdout é exclusivo do protocolo JSON-RPC.
+// Qualquer log deve ir para stderr para não corromper o parser do cliente MCP.
+console.log = console.error;
 const { McpServer } = require('@modelcontextprotocol/sdk/server/mcp.js');
 const { StdioServerTransport } = require('@modelcontextprotocol/sdk/server/stdio.js');
 const { z } = require('zod');

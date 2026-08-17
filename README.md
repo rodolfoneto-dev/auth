@@ -156,16 +156,17 @@ O microsserviço `auth` inclui um servidor MCP nativo ([`src/mcp/server.js`](src
 
 ### Como plugar no Claude Desktop / Cursor / Antigravity
 
-Adicione nas configurações do seu cliente MCP:
+Consulte o arquivo de exemplo pronto [`mcp.config.example.json`](mcp.config.example.json) ou adicione na configuração do seu cliente MCP:
 
 ```json
 {
   "mcpServers": {
-    "auth": {
+    "auth-service": {
       "command": "node",
       "args": ["/caminho/absoluto/para/auth/src/mcp/server.js"],
       "env": {
-        "JWT_SECRET": "sua_chave_secreta"
+        "JWT_SECRET": "sua_chave_secreta",
+        "PORT": "4000"
       }
     }
   }

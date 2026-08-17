@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "auth-service": {
+      "command": "node",
+      "args": ["/caminho/absoluto/para/auth/src/mcp/server.js"],
+      "env": {
+        "JWT_SECRET": "sua_chave_secreta_aqui",
+        "PORT": "4000",
+        "APP_URL": "http://localhost:4000"
+      }
+    }
+  }
+}
