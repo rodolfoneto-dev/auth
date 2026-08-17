@@ -42,7 +42,7 @@ jobs:
           PORT: 4000
           JWT_SECRET: test_jwt_secret_ci
         run: |
-          npx jest --testPathPattern=integration --json --outputFile=jest-integration-results.json || echo "TEST_EXIT_CODE=$?" >> $GITHUB_ENV
+          npx jest --testPathPatterns=integration --json --outputFile=jest-integration-results.json || echo "TEST_EXIT_CODE=$?" >> $GITHUB_ENV
 
       - name: Generate Summary Report
         if: always()
