@@ -2,10 +2,16 @@ require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
 const authRoutes = require('./routes/auth');
+const { swaggerUi, swaggerSpec } = require('./config/swagger');
 
 const app = express();
 app.use(express.json());
 
+// Documentação interativa Swagger
+app.use('/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+app.get('/docs.json', (req, res) => res.json(swaggerSpec));
+
+// Endpoint de Health Check
 app.get('/health', (req, res) => res.json({ status: 'ok' }));
 app.use('/auth', authRoutes);
 
