@@ -1,14 +1,20 @@
 const express = require('express');
 const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
 const User = require('../models/User');
-const { authenticate, checkRole } = require('../middlewares/auth');
+const { authenticate, checkRole, requireEmailVerified } = require('../middlewares/auth');
+const { sendVerificationEmail } = require('../services/email');
 
 const router = express.Router();
 
-// Helper para gerar token JWT com id e role
+// Helper para gerar token JWT com id, role e status de verificação
 const generateToken = (user) => {
   return jwt.sign(
-    { id: user._id, role: user.role },
+    {
+      id: user._id,
+      role: user.role,
+      emailVerified: user.emailVerified,
+    },
     process.env.JWT_SECRET,
     { expiresIn: '7d' }
   );
@@ -19,7 +25,7 @@ const generateToken = (user) => {
  * /auth/register:
  *   post:
  *     summary: Cadastro de novo usuário
- *     description: Cria um novo usuário no banco com senha criptografada via bcrypt e retorna os dados do usuário com um token JWT válido por 7 dias.
+ *     description: Cria um novo usuário no banco com emailVerified=false, gera hash da senha com bcrypt, cria token de confirmação seguro e envia e-mail transacional de ativação.
  *     tags:
  *       - Autenticação
  *     requestBody:
@@ -52,12 +58,15 @@ const generateToken = (user) => {
  *                 example: aluno
  *     responses:
  *       201:
- *         description: Usuário criado com sucesso
+ *         description: Usuário criado com sucesso e e-mail de confirmação enviado
  *         content:
  *           application/json:
  *             schema:
  *               type: object
  *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Usuário registrado com sucesso. Por favor, confirme seu e-mail.
  *                 user:
  *                   type: object
  *                   properties:
@@ -73,35 +82,16 @@ const generateToken = (user) => {
  *                     role:
  *                       type: string
  *                       example: aluno
- *                     createdAt:
- *                       type: string
- *                       format: date-time
- *                     updatedAt:
- *                       type: string
- *                       format: date-time
+ *                     emailVerified:
+ *                       type: boolean
+ *                       example: false
  *                 token:
  *                   type: string
  *                   example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
  *       400:
  *         description: Campos obrigatórios ausentes ou dados inválidos
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 error:
- *                   type: string
- *                   example: Nome, email e senha são obrigatórios
  *       409:
  *         description: Conflito - Email já cadastrado
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 error:
- *                   type: string
- *                   example: Email já cadastrado
  *       500:
  *         description: Erro interno do servidor
  */
@@ -114,27 +104,175 @@ router.post('/register', async (req, res) => {
       return res.status(400).json({ error: 'Nome, email e senha são obrigatórios' });
     }
 
-    // Criação do usuário (hash automático via pre-save hook do User model)
+    // Instancia o usuário
     const user = new User({ name, email, password, role });
+
+    // Gera token de confirmação de e-mail (criptograficamente seguro, hash SHA-256 no banco)
+    const rawVerificationToken = user.generateEmailVerificationToken();
+
+    // Salva usuário no banco (hash bcrypt da senha via pre-save hook)
     await user.save();
 
-    // Geração de token JWT
+    // Dispara envio do e-mail de ativação
+    await sendVerificationEmail(user.email, user.name, rawVerificationToken);
+
+    // Geração do token JWT
     const token = generateToken(user);
 
-    // Retorna usuário (sem senha, tratado por toJSON) e token
-    return res.status(201).json({ user, token });
+    return res.status(201).json({
+      message: 'Usuário registrado com sucesso. Por favor, confirme seu e-mail.',
+      user,
+      token,
+    });
   } catch (err) {
-    // Erro de duplicidade do MongoDB (índice único no email)
     if (err.code === 11000) {
       return res.status(409).json({ error: 'Email já cadastrado' });
     }
 
-    // Erros de validação do Mongoose (formato de email, tamanho de senha, role inválido)
     if (err.name === 'ValidationError') {
       return res.status(400).json({ error: err.message });
     }
 
     return res.status(500).json({ error: 'Erro interno ao registrar usuário' });
+  }
+});
+
+/**
+ * @openapi
+ * /auth/verify-email:
+ *   get:
+ *     summary: Confirmação de endereço de e-mail
+ *     description: Valida o token de confirmação único enviado por e-mail, verifica expiração (24h) e marca emailVerified=true no usuário.
+ *     tags:
+ *       - Confirmação de E-mail
+ *     parameters:
+ *       - in: query
+ *         name: token
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Token de confirmação de uso único
+ *     responses:
+ *       200:
+ *         description: E-mail verificado com sucesso
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: E-mail verificado com sucesso!
+ *                 user:
+ *                   type: object
+ *       400:
+ *         description: Token inválido, expirado ou não informado
+ *       500:
+ *         description: Erro interno do servidor
+ */
+router.get('/verify-email', async (req, res) => {
+  try {
+    const { token } = req.query;
+
+    if (!token) {
+      return res.status(400).json({ error: 'Token de verificação é obrigatório' });
+    }
+
+    // Calcula hash SHA-256 do token recebido para buscar no banco
+    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+
+    // Busca usuário com token correspondente e não expirado
+    const user = await User.findOne({
+      emailVerificationTokenHash: tokenHash,
+      emailVerificationExpiresAt: { $gt: new Date() },
+    });
+
+    if (!user) {
+      return res.status(400).json({
+        error: 'Token de verificação inválido ou expirado',
+      });
+    }
+
+    // Ativa o e-mail e invalida o token
+    user.emailVerified = true;
+    user.emailVerificationTokenHash = null;
+    user.emailVerificationExpiresAt = null;
+    await user.save();
+
+    return res.status(200).json({
+      success: true,
+      message: 'E-mail verificado com sucesso!',
+      user,
+    });
+  } catch (err) {
+    return res.status(500).json({ error: 'Erro interno ao verificar e-mail' });
+  }
+});
+
+/**
+ * @openapi
+ * /auth/resend-verification:
+ *   post:
+ *     summary: Reenviar link de confirmação de e-mail
+ *     description: Gera um novo token de confirmação e reenvia o e-mail caso o usuário ainda não esteja verificado.
+ *     tags:
+ *       - Confirmação de E-mail
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 example: joao@example.com
+ *     responses:
+ *       200:
+ *         description: Mensagem de confirmação genérica (prevenção de enumeração de e-mails)
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Se o e-mail estiver cadastrado e não verificado, um novo link foi enviado.
+ *       400:
+ *         description: Email não informado
+ *       500:
+ *         description: Erro interno do servidor
+ */
+router.post('/resend-verification', async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({ error: 'Email é obrigatório' });
+    }
+
+    const user = await User.findOne({ email });
+
+    // Se usuário existir e ainda não estiver verificado, gera novo token e reenvia
+    if (user && !user.emailVerified) {
+      const rawToken = user.generateEmailVerificationToken();
+      await user.save();
+      await sendVerificationEmail(user.email, user.name, rawToken);
+    }
+
+    // Resposta neutra por segurança (evita enumeração de contas)
+    return res.status(200).json({
+      message:
+        'Se o e-mail estiver cadastrado e não verificado, um novo link de confirmação foi enviado.',
+    });
+  } catch (err) {
+    return res.status(500).json({ error: 'Erro interno ao reenviar confirmação' });
   }
 });
 
@@ -187,29 +325,16 @@ router.post('/register', async (req, res) => {
  *                     role:
  *                       type: string
  *                       example: aluno
+ *                     emailVerified:
+ *                       type: boolean
+ *                       example: false
  *                 token:
  *                   type: string
  *                   example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
  *       400:
  *         description: Email ou senha não informados
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 error:
- *                   type: string
- *                   example: Email e senha são obrigatórios
  *       401:
  *         description: Credenciais inválidas (email não encontrado ou senha incorreta)
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 error:
- *                   type: string
- *                   example: Credenciais inválidas
  *       500:
  *         description: Erro interno do servidor
  */
@@ -248,7 +373,7 @@ router.post('/login', async (req, res) => {
  * /auth/validate:
  *   get:
  *     summary: Validação de token JWT (Contrato para outros microsserviços)
- *     description: Valida o token JWT fornecido no header Authorization e retorna o payload decodificado ({ id, role }). Utilizado por academy, adm, comms, etc.
+ *     description: Valida o token JWT fornecido no header Authorization e retorna o payload decodificado ({ id, role, emailVerified }). Utilizado por academy, adm, comms, etc.
  *     tags:
  *       - Validação & Sessão
  *     security:
@@ -274,16 +399,11 @@ router.post('/login', async (req, res) => {
  *                       type: string
  *                       enum: [aluno, professor, admin]
  *                       example: professor
+ *                     emailVerified:
+ *                       type: boolean
+ *                       example: true
  *       401:
  *         description: Token não fornecido, formato inválido, expirado ou assinatura inválida
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 error:
- *                   type: string
- *                   example: Token inválido
  */
 router.get('/validate', authenticate, (req, res) => {
   return res.status(200).json({
@@ -325,12 +445,9 @@ router.get('/validate', authenticate, (req, res) => {
  *                     role:
  *                       type: string
  *                       example: aluno
- *                     createdAt:
- *                       type: string
- *                       format: date-time
- *                     updatedAt:
- *                       type: string
- *                       format: date-time
+ *                     emailVerified:
+ *                       type: boolean
+ *                       example: true
  *       401:
  *         description: Não autorizado - Token ausente ou inválido
  *       404:

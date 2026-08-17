@@ -15,6 +15,7 @@ const authenticate = (req, res, next) => {
     req.user = {
       id: decoded.id,
       role: decoded.role,
+      emailVerified: decoded.emailVerified,
     };
     next();
   } catch (err) {
@@ -40,7 +41,23 @@ const checkRole = (...allowedRoles) => {
   };
 };
 
+// Middleware para exigir e-mail verificado antes de acessar rota protegida
+const requireEmailVerified = (req, res, next) => {
+  if (!req.user) {
+    return res.status(401).json({ error: 'Não autenticado' });
+  }
+
+  if (!req.user.emailVerified) {
+    return res.status(403).json({
+      error: 'Confirmação de e-mail obrigatória. Por favor, verifique sua caixa de entrada.',
+    });
+  }
+
+  next();
+};
+
 module.exports = {
   authenticate,
   checkRole,
+  requireEmailVerified,
 };

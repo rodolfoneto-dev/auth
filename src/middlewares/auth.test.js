@@ -1,5 +1,5 @@
 const jwt = require('jsonwebtoken');
-const { authenticate, checkRole } = require('./auth');
+const { authenticate, checkRole, requireEmailVerified } = require('./auth');
 
 describe('Auth Middlewares', () => {
   const secret = 'test_secret_jwt';
@@ -49,7 +49,7 @@ describe('Auth Middlewares', () => {
 
     it('deve retornar 401 se o token estiver expirado', () => {
       const expiredToken = jwt.sign(
-        { id: '123', role: 'aluno' },
+        { id: '123', role: 'aluno', emailVerified: false },
         secret,
         { expiresIn: '-1s' }
       );
@@ -63,7 +63,7 @@ describe('Auth Middlewares', () => {
 
     it('deve injetar req.user e chamar next() para token válido', () => {
       const validToken = jwt.sign(
-        { id: 'user_id_123', role: 'professor' },
+        { id: 'user_id_123', role: 'professor', emailVerified: true },
         secret,
         { expiresIn: '1h' }
       );
@@ -73,6 +73,7 @@ describe('Auth Middlewares', () => {
       expect(req.user).toBeDefined();
       expect(req.user.id).toBe('user_id_123');
       expect(req.user.role).toBe('professor');
+      expect(req.user.emailVerified).toBe(true);
       expect(next).toHaveBeenCalled();
     });
   });
@@ -114,6 +115,46 @@ describe('Auth Middlewares', () => {
       req.user = { id: '123', role: 'admin' };
       const middleware = checkRole('professor', 'admin');
       middleware(req, res, next);
+
+      expect(next).toHaveBeenCalled();
+      expect(res.status).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('requireEmailVerified middleware', () => {
+    let req, res, next;
+
+    beforeEach(() => {
+      req = { user: null };
+      res = {
+        status: jest.fn().mockReturnThis(),
+        json: jest.fn().mockReturnThis(),
+      };
+      next = jest.fn();
+    });
+
+    it('deve retornar 401 se não estiver autenticado', () => {
+      requireEmailVerified(req, res, next);
+
+      expect(res.status).toHaveBeenCalledWith(401);
+      expect(res.json).toHaveBeenCalledWith({ error: 'Não autenticado' });
+      expect(next).not.toHaveBeenCalled();
+    });
+
+    it('deve retornar 403 se emailVerified for false', () => {
+      req.user = { id: '123', role: 'aluno', emailVerified: false };
+      requireEmailVerified(req, res, next);
+
+      expect(res.status).toHaveBeenCalledWith(403);
+      expect(res.json).toHaveBeenCalledWith({
+        error: 'Confirmação de e-mail obrigatória. Por favor, verifique sua caixa de entrada.',
+      });
+      expect(next).not.toHaveBeenCalled();
+    });
+
+    it('deve chamar next() se emailVerified for true', () => {
+      req.user = { id: '123', role: 'aluno', emailVerified: true };
+      requireEmailVerified(req, res, next);
 
       expect(next).toHaveBeenCalled();
       expect(res.status).not.toHaveBeenCalled();

@@ -26,6 +26,7 @@ Todos os outros microsserviços operam de forma **Stateless (sem estado)**, vali
 {
   "id": "64f1a2b3c4d5e6f7a8b9c0d1",
   "role": "aluno",
+  "emailVerified": true,
   "iat": 1786930000,
   "exp": 1787534800
 }
@@ -65,7 +66,11 @@ const authenticate = (req, res, next) => {
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    req.user = { id: decoded.id, role: decoded.role };
+    req.user = {
+      id: decoded.id,
+      role: decoded.role,
+      emailVerified: decoded.emailVerified,
+    };
     next();
   } catch (err) {
     if (err.name === 'TokenExpiredError') {
@@ -90,7 +95,22 @@ const checkRole = (...allowedRoles) => {
   };
 };
 
-module.exports = { authenticate, checkRole };
+// 3. Exige confirmação de e-mail ativa
+const requireEmailVerified = (req, res, next) => {
+  if (!req.user) {
+    return res.status(401).json({ error: 'Não autenticado' });
+  }
+
+  if (!req.user.emailVerified) {
+    return res.status(403).json({
+      error: 'Confirmação de e-mail obrigatória. Por favor, verifique sua caixa de entrada.',
+    });
+  }
+
+  next();
+};
+
+module.exports = { authenticate, checkRole, requireEmailVerified };
 ```
 
 ---

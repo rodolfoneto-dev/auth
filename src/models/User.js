@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcrypt');
+const crypto = require('crypto');
 
 const userSchema = new mongoose.Schema(
   {
@@ -29,6 +30,18 @@ const userSchema = new mongoose.Schema(
       },
       default: 'aluno',
     },
+    emailVerified: {
+      type: Boolean,
+      default: false,
+    },
+    emailVerificationTokenHash: {
+      type: String,
+      default: null,
+    },
+    emailVerificationExpiresAt: {
+      type: Date,
+      default: null,
+    },
   },
   {
     timestamps: true,
@@ -48,10 +61,27 @@ userSchema.methods.comparePassword = async function (candidatePassword) {
   return bcrypt.compare(candidatePassword, this.password);
 };
 
-// Remove senha do objeto JSON retornado em respostas
+// Gera token criptografado para confirmação de e-mail (válido por 24 horas)
+userSchema.methods.generateEmailVerificationToken = function () {
+  const rawToken = crypto.randomBytes(32).toString('hex');
+
+  this.emailVerificationTokenHash = crypto
+    .createHash('sha256')
+    .update(rawToken)
+    .digest('hex');
+
+  // Expiração em 24 horas
+  this.emailVerificationExpiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+
+  return rawToken;
+};
+
+// Remove campos sensíveis no retorno JSON
 userSchema.methods.toJSON = function () {
   const obj = this.toObject();
   delete obj.password;
+  delete obj.emailVerificationTokenHash;
+  delete obj.emailVerificationExpiresAt;
   return obj;
 };
 

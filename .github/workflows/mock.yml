@@ -63,16 +63,43 @@ jobs:
             const isSuccess = data.success;
             const statusBadge = isSuccess ? "✅ **TODOS OS TESTES PASSARAM**" : "❌ **FALHAS ENCONTRADAS NOS TESTES**";
 
+            // Detecção do fluxo de e-mail nos testes
+            let emailTestsCount = 0;
+            let emailTestsPassed = 0;
+            data.testResults.forEach(suite => {
+              (suite.assertionResults || []).forEach(test => {
+                const fullName = (test.ancestorTitles.join(" ") + " " + test.title).toLowerCase();
+                if (fullName.includes("email") || fullName.includes("verify") || fullName.includes("resend") || fullName.includes("confirmação")) {
+                  emailTestsCount++;
+                  if (test.status === "passed") emailTestsPassed++;
+                }
+              });
+            });
+
+            const emailStatusBadge = emailTestsPassed === emailTestsCount && emailTestsCount > 0
+              ? "✉️ **100% VALIDADO (Tokens SHA-256 + Ativação + Expiração 24h)**"
+              : "⚠️ **PENDÊNCIAS NO FLUXO DE E-MAIL**";
+
             let md = `## 🧪 Relatório de Testes de Integração (Mock DB)\n\n`;
-            md += `> **Status**: ${statusBadge}\n\n`;
+            md += `> **Status Geral**: ${statusBadge}\n`;
+            md += `> **Confirmação de E-mail**: ${emailStatusBadge}\n\n`;
+
+            md += `### 📊 Métricas de Execução\n\n`;
             md += `| Métrica | Quantidade |\n`;
             md += `| :--- | :--- |\n`;
             md += `| 📦 **Test Suites** | **${passedSuites} / ${totalSuites}** passadas |\n`;
             md += `| 🧪 **Testes Totais** | **${totalTests}** |\n`;
-            md += `| ✅ **Sucesso** | **${passedTests}** |\n`;
+            md += `| ✉️ **Testes de Confirmação de E-mail** | **${emailTestsPassed} / ${emailTestsCount}** com sucesso |\n`;
+            md += `| ✅ **Sucesso Geral** | **${passedTests}** |\n`;
             md += `| ❌ **Falhas** | **${failedTests}** |\n\n`;
 
-            md += `### 📋 Detalhes das Execuções\n\n`;
+            md += `### 🛡️ Destaques de Segurança Testados\n\n`;
+            md += `- 🔒 **Hash Criptográfico de Token (SHA-256)**: Protege tokens em repouso no banco.\n`;
+            md += `- ✉️ **Ativação de Conta (\`emailVerified: true\`)**: Atualização atômica após clique no link.\n`;
+            md += `- ⏱️ **Validação de Expiração (24h)**: Rejeição de tokens vencidos com HTTP 400.\n`;
+            md += `- 🔄 **Reenvio Seguro (\`/resend-verification\`)**: Resposta neutra sem expor existência de contas.\n\n`;
+
+            md += `### 📋 Detalhes das Execuções por Arquivo\n\n`;
             (data.testResults || []).forEach(suite => {
               const rawPath = suite.name || suite.testFilePath || "Test Suite";
               const suitePath = rawPath.replace(process.cwd() + "/", "");

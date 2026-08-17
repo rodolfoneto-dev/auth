@@ -16,12 +16,26 @@ describe('Swagger Documentation', () => {
     expect(res.text).toContain('Swagger UI');
   });
 
+  it('deve retornar o JSON cru da especificação OpenAPI em /docs.json', async () => {
+    const res = await request(app).get('/docs.json');
+    expect(res.statusCode).toBe(200);
+    expect(res.body.openapi).toBe('3.0.0');
+    expect(res.body.paths['/auth/register']).toBeDefined();
+    expect(res.body.paths['/auth/verify-email']).toBeDefined();
+    expect(res.body.paths['/auth/resend-verification']).toBeDefined();
+    expect(res.body.paths['/auth/login']).toBeDefined();
+    expect(res.body.paths['/auth/validate']).toBeDefined();
+    expect(res.body.paths['/auth/me']).toBeDefined();
+  });
+
   it('deve retornar a documentação em formato Markdown em /docs.md', async () => {
     const res = await request(app).get('/docs.md');
     expect(res.statusCode).toBe(200);
     expect(res.headers['content-type']).toContain('text/markdown');
     expect(res.text).toContain('# Auth Service API');
     expect(res.text).toContain('/auth/register');
+    expect(res.text).toContain('/auth/verify-email');
+    expect(res.text).toContain('/auth/resend-verification');
     expect(res.text).toContain('/auth/login');
     expect(res.text).toContain('/auth/validate');
     expect(res.text).toContain('/auth/me');
@@ -34,4 +48,3 @@ describe('Swagger Documentation', () => {
     expect(res.text).toContain('Copiar Markdown para Prompt IA');
   });
 });
-

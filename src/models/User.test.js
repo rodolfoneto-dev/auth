@@ -2,7 +2,7 @@ const User = require('./User');
 const bcrypt = require('bcrypt');
 
 describe('User Model', () => {
-  it('deve validar um usuário válido com valores padrão', async () => {
+  it('deve validar um usuário válido com valores padrão (emailVerified=false)', async () => {
     const validUserData = {
       name: 'João Silva',
       email: 'joao@example.com',
@@ -12,6 +12,9 @@ describe('User Model', () => {
     const user = new User(validUserData);
     await expect(user.validate()).resolves.toBeUndefined();
     expect(user.role).toBe('aluno');
+    expect(user.emailVerified).toBe(false);
+    expect(user.emailVerificationTokenHash).toBeNull();
+    expect(user.emailVerificationExpiresAt).toBeNull();
   });
 
   it('deve falhar se campos obrigatórios estiverem ausentes', async () => {
@@ -81,15 +84,36 @@ describe('User Model', () => {
     expect(isWrongMatch).toBe(false);
   });
 
-  it('deve remover a senha no retorno toJSON', () => {
+  it('deve gerar token de verificação criptografado e data de expiração', () => {
     const user = new User({
       name: 'Teste',
       email: 'teste@example.com',
       password: 'secretpassword',
     });
 
+    const rawToken = user.generateEmailVerificationToken();
+
+    expect(rawToken).toBeDefined();
+    expect(typeof rawToken).toBe('string');
+    expect(rawToken.length).toBe(64); // 32 bytes hex
+    expect(user.emailVerificationTokenHash).toBeDefined();
+    expect(user.emailVerificationTokenHash).not.toBe(rawToken);
+    expect(user.emailVerificationExpiresAt.getTime()).toBeGreaterThan(Date.now());
+  });
+
+  it('deve remover a senha e dados do token no retorno toJSON', () => {
+    const user = new User({
+      name: 'Teste',
+      email: 'teste@example.com',
+      password: 'secretpassword',
+    });
+    user.generateEmailVerificationToken();
+
     const json = user.toJSON();
     expect(json.password).toBeUndefined();
+    expect(json.emailVerificationTokenHash).toBeUndefined();
+    expect(json.emailVerificationExpiresAt).toBeUndefined();
     expect(json.email).toBe('teste@example.com');
+    expect(json.emailVerified).toBe(false);
   });
 });
