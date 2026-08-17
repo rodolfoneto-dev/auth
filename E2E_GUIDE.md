@@ -1,6 +1,6 @@
 # Guia de Testes e Validação End-to-End (E2E)
 
-Este documento descreve o fluxo completo de interoperabilidade entre o **Auth Service (`:4000`)** e o **Academy Service (`:4001`)**, com comandos `curl` prontos para cópia e execução.
+Este documento descreve o fluxo completo de interoperabilidade entre o **Auth Service (`:4000`)** e o **Academy Service (`:4002`)**, com comandos `curl` prontos para cópia e execução.
 
 ---
 
@@ -12,7 +12,7 @@ sequenceDiagram
     actor Prof as Professor
     actor Aluno as Aluno
     participant Auth as Auth Service (:4000)
-    participant Academy as Academy Service (:4001)
+    participant Academy as Academy Service (:4002)
 
     Note over Prof,Auth: 1. Cadastro e Confirmação de E-mail
     Prof->>Auth: POST /auth/register (role: "professor")
@@ -47,7 +47,7 @@ sequenceDiagram
 curl -s http://localhost:4000/health
 
 # Health check do Academy
-curl -s http://localhost:4001/health
+curl -s http://localhost:4002/health
 ```
 
 ---
@@ -90,10 +90,10 @@ curl -s -X POST http://localhost:4000/auth/login \
 
 ---
 
-### Passo 5: Criar Curso no Academy Service (:4001)
+### Passo 5: Criar Curso no Academy Service (:4002)
 ```bash
 # Substitua TOKEN_PROFESSOR pelo token copiado no passo 4
-curl -s -X POST http://localhost:4001/courses \
+curl -s -X POST http://localhost:4002/courses \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer TOKEN_PROFESSOR" \
   -d '{
@@ -109,10 +109,10 @@ curl -s -X POST http://localhost:4001/courses \
 
 ---
 
-### Passo 6: Adicionar Aula ao Curso no Academy (:4001)
+### Passo 6: Adicionar Aula ao Curso no Academy (:4002)
 ```bash
 # Substitua ID_DO_CURSO e TOKEN_PROFESSOR
-curl -s -X POST http://localhost:4001/courses/ID_DO_CURSO/lessons \
+curl -s -X POST http://localhost:4002/courses/ID_DO_CURSO/lessons \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer TOKEN_PROFESSOR" \
   -d '{
@@ -126,7 +126,7 @@ curl -s -X POST http://localhost:4001/courses/ID_DO_CURSO/lessons \
 
 ### Passo 7: Consultar Curso e Grade de Aulas (Público)
 ```bash
-curl -s http://localhost:4001/courses/ID_DO_CURSO
+curl -s http://localhost:4002/courses/ID_DO_CURSO
 ```
 
 ---
