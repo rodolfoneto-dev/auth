@@ -2,9 +2,9 @@ name: Integration & Mock DB Tests
 
 on:
   push:
-    branches: [ master, main, develop ]
+    branches: [ feature/*, main, develop ]
   pull_request:
-    branches: [ master, main, develop ]
+    branches: [ feature/*, main, develop ]
 
 jobs:
   integration-tests:
