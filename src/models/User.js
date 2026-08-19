@@ -138,7 +138,8 @@ userSchema.methods.generateRefreshToken = function () {
     .update(rawToken)
     .digest('hex');
 
-  const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+  const refreshTokenDays = Number(process.env.JWT_REFRESH_TOKEN_TTL_DAYS) || 30;
+  const expiresAt = new Date(Date.now() + refreshTokenDays * 24 * 60 * 60 * 1000);
 
   if (!this.refreshTokens) {
     this.refreshTokens = [];
