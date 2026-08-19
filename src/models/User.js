@@ -129,8 +129,8 @@ userSchema.methods.generatePasswordResetToken = function () {
   return rawToken;
 };
 
-// Gera novo Refresh Token seguro (válido por 30 dias) e anexa à lista de sessões
-userSchema.methods.generateRefreshToken = function () {
+// Gera novo Refresh Token seguro (dias configuráveis) e anexa à lista de sessões
+userSchema.methods.generateRefreshToken = function (customDays = null) {
   const rawToken = crypto.randomBytes(40).toString('hex');
 
   const tokenHash = crypto
@@ -138,7 +138,8 @@ userSchema.methods.generateRefreshToken = function () {
     .update(rawToken)
     .digest('hex');
 
-  const refreshTokenDays = Number(process.env.JWT_REFRESH_TOKEN_TTL_DAYS) || 30;
+  const defaultDays = Number(process.env.JWT_REFRESH_TOKEN_TTL_DAYS) || 30;
+  const refreshTokenDays = typeof customDays === 'number' && customDays > 0 ? customDays : defaultDays;
   const expiresAt = new Date(Date.now() + refreshTokenDays * 24 * 60 * 60 * 1000);
 
   if (!this.refreshTokens) {

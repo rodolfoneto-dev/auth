@@ -2,7 +2,15 @@ require('dotenv').config({ quiet: true });
 const mongoose = require('mongoose');
 const User = require('./User');
 
-const MONGO_URI = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/test_auth_db';
+const getTestMongoUri = () => {
+  if (process.env.TEST_MONGO_URI) return process.env.TEST_MONGO_URI;
+  if (process.env.MONGO_URI) {
+    return process.env.MONGO_URI.replace(/\/eng_auth_db(\?|$)/, '/eng_auth_test_db$1');
+  }
+  return 'mongodb://127.0.0.1:27017/test_auth_db';
+};
+
+const MONGO_URI = getTestMongoUri();
 
 describe('User Model - Testes de Integração com Banco Real', () => {
   beforeAll(async () => {

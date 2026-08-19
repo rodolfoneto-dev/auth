@@ -399,6 +399,10 @@ router.post('/resend-verification', recoveryLimiter, async (req, res) => {
  *                 type: string
  *                 format: password
  *                 example: senhaForte123@
+ *               rememberMe:
+ *                 type: boolean
+ *                 default: true
+ *                 example: true
  *     responses:
  *       200:
  *         description: Autenticação realizada com sucesso
@@ -441,7 +445,7 @@ router.post('/resend-verification', recoveryLimiter, async (req, res) => {
  */
 router.post('/login', authLimiter, async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { email, password, rememberMe } = req.body;
 
     if (!email || !password) {
       return res.status(400).json({
@@ -476,9 +480,10 @@ router.post('/login', authLimiter, async (req, res) => {
       });
     }
 
-    // Geração do token JWT de acesso e do Refresh Token seguro
+    // Geração do token JWT de acesso e do Refresh Token seguro (respeitando rememberMe)
     const token = generateAccessToken(user);
-    const refreshToken = user.generateRefreshToken();
+    const ttlDays = rememberMe === false ? 1 : (Number(process.env.JWT_REFRESH_TOKEN_TTL_DAYS) || 30);
+    const refreshToken = user.generateRefreshToken(ttlDays);
     await user.save();
 
     return res.status(200).json({
@@ -667,6 +672,164 @@ router.post('/logout', async (req, res) => {
       error: {
         code: 'INTERNAL_SERVER_ERROR',
         message: 'Erro ao realizar logout',
+      },
+    });
+  }
+});
+
+/**
+ * @openapi
+ * /auth/logout-all:
+ *   post:
+ *     summary: Encerramento de todas as sessões (Logout Global)
+ *     description: Revoga todos os Refresh Tokens do usuário autenticado, desconectando todos os dispositivos.
+ *     tags:
+ *       - Autenticação
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Todas as sessões foram encerradas com sucesso
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Todas as sessões foram encerradas com sucesso
+ *       401:
+ *         description: Não autenticado
+ */
+router.post('/logout-all', authenticate, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({
+        error: {
+          code: 'USER_NOT_FOUND',
+          message: 'Usuário não encontrado',
+        },
+      });
+    }
+
+    user.revokeAllRefreshTokens();
+    await user.save();
+
+    return res.status(200).json({
+      message: 'Todas as sessões foram encerradas com sucesso',
+    });
+  } catch (err) {
+    return res.status(500).json({
+      error: {
+        code: 'INTERNAL_SERVER_ERROR',
+        message: 'Erro ao encerrar todas as sessões',
+      },
+    });
+  }
+});
+
+/**
+ * @openapi
+ * /auth/change-password:
+ *   post:
+ *     summary: Alteração de senha da conta autenticada
+ *     description: Valida a senha atual e define uma nova senha para o usuário autenticado, revogando todas as sessões anteriores.
+ *     tags:
+ *       - Autenticação
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - currentPassword
+ *               - newPassword
+ *             properties:
+ *               currentPassword:
+ *                 type: string
+ *                 format: password
+ *               newPassword:
+ *                 type: string
+ *                 format: password
+ *                 minLength: 6
+ *     responses:
+ *       200:
+ *         description: Senha alterada com sucesso
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: Senha alterada com sucesso!
+ *       400:
+ *         description: Dados inválidos ou nova senha muito curta
+ *       401:
+ *         description: Senha atual incorreta ou não autenticado
+ */
+router.post('/change-password', authenticate, async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'Senha atual e nova senha são obrigatórias',
+        },
+      });
+    }
+
+    if (typeof newPassword !== 'string' || newPassword.length < 6) {
+      return res.status(400).json({
+        error: {
+          code: 'PASSWORD_TOO_SHORT',
+          message: 'A nova senha deve ter no mínimo 6 caracteres',
+        },
+      });
+    }
+
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({
+        error: {
+          code: 'USER_NOT_FOUND',
+          message: 'Usuário não encontrado',
+        },
+      });
+    }
+
+    const isMatch = await user.comparePassword(currentPassword);
+    if (!isMatch) {
+      return res.status(401).json({
+        error: {
+          code: 'INVALID_CURRENT_PASSWORD',
+          message: 'Senha atual incorreta',
+        },
+      });
+    }
+
+    user.password = newPassword;
+    user.revokeAllRefreshTokens();
+    await user.save();
+
+    return res.status(200).json({
+      success: true,
+      message: 'Senha alterada com sucesso!',
+    });
+  } catch (err) {
+    return res.status(500).json({
+      error: {
+        code: 'INTERNAL_SERVER_ERROR',
+        message: 'Erro ao alterar senha',
       },
     });
   }

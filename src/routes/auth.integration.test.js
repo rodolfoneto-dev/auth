@@ -4,7 +4,15 @@ const jwt = require('jsonwebtoken');
 const app = require('../server');
 const User = require('../models/User');
 
-const MONGO_URI = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/test_auth_db';
+const getTestMongoUri = () => {
+  if (process.env.TEST_MONGO_URI) return process.env.TEST_MONGO_URI;
+  if (process.env.MONGO_URI) {
+    return process.env.MONGO_URI.replace(/\/eng_auth_db(\?|$)/, '/eng_auth_test_db$1');
+  }
+  return 'mongodb://127.0.0.1:27017/test_auth_db';
+};
+
+const MONGO_URI = getTestMongoUri();
 process.env.JWT_SECRET = process.env.JWT_SECRET || 'test_secret';
 
 describe('Auth Routes - Integration Tests', () => {
@@ -394,6 +402,105 @@ describe('Auth Routes - Integration Tests', () => {
       expect(meRes.body.user.role).toBe('aluno');
       expect(meRes.body.user.emailVerified).toBe(false);
       expect(meRes.body.user.password).toBeUndefined();
+    });
+  });
+
+  describe('POST /auth/logout-all & POST /auth/change-password', () => {
+    it('deve permitir encerrar todas as sessões com /auth/logout-all', async () => {
+      const registerRes = await request(app)
+        .post('/auth/register')
+        .send({
+          name: 'Multi Session User',
+          email: 'multisession@example.com',
+          password: 'password123',
+        });
+
+      const token = registerRes.body.token;
+      const initialRefreshToken = registerRes.body.refreshToken;
+
+      const logoutAllRes = await request(app)
+        .post('/auth/logout-all')
+        .set('Authorization', `Bearer ${token}`);
+
+      expect(logoutAllRes.statusCode).toBe(200);
+      expect(logoutAllRes.body.message).toContain('Todas as sessões foram encerradas');
+
+      // Refresh token anterior deve estar revogado
+      const refreshRes = await request(app)
+        .post('/auth/refresh')
+        .send({ refreshToken: initialRefreshToken });
+
+      expect(refreshRes.statusCode).toBe(401);
+    });
+
+    it('deve permitir alterar senha com /auth/change-password e invalidar sessões anteriores', async () => {
+      const registerRes = await request(app)
+        .post('/auth/register')
+        .send({
+          name: 'Change Pwd User',
+          email: 'changepwd@example.com',
+          password: 'oldSecretPassword123',
+        });
+
+      const token = registerRes.body.token;
+
+      // Senha atual errada deve falhar
+      const wrongOldRes = await request(app)
+        .post('/auth/change-password')
+        .set('Authorization', `Bearer ${token}`)
+        .send({
+          currentPassword: 'wrongPassword',
+          newPassword: 'newSecretPassword123',
+        });
+
+      expect(wrongOldRes.statusCode).toBe(401);
+
+      // Troca com sucesso
+      const changeRes = await request(app)
+        .post('/auth/change-password')
+        .set('Authorization', `Bearer ${token}`)
+        .send({
+          currentPassword: 'oldSecretPassword123',
+          newPassword: 'newSecretPassword123',
+        });
+
+      expect(changeRes.statusCode).toBe(200);
+      expect(changeRes.body.success).toBe(true);
+
+      // Login com nova senha deve funcionar
+      const loginNewRes = await request(app)
+        .post('/auth/login')
+        .send({
+          email: 'changepwd@example.com',
+          password: 'newSecretPassword123',
+        });
+
+      expect(loginNewRes.statusCode).toBe(200);
+    });
+
+    it('deve suportar rememberMe no login definindo expiração curta ou longa', async () => {
+      const registerRes = await request(app)
+        .post('/auth/register')
+        .send({
+          name: 'Remember User',
+          email: 'remember@example.com',
+          password: 'password123',
+        });
+
+      // Login com rememberMe: false
+      const loginShortRes = await request(app)
+        .post('/auth/login')
+        .send({
+          email: 'remember@example.com',
+          password: 'password123',
+          rememberMe: false,
+        });
+
+      expect(loginShortRes.statusCode).toBe(200);
+      const userDb = await User.findOne({ email: 'remember@example.com' });
+      const lastToken = userDb.refreshTokens[userDb.refreshTokens.length - 1];
+      const diffHours = (lastToken.expiresAt.getTime() - Date.now()) / (1000 * 60 * 60);
+      expect(diffHours).toBeLessThanOrEqual(25); // ~1 dia
     });
   });
 });
