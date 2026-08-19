@@ -21,9 +21,13 @@ describe('Auth Middlewares', () => {
       authenticate(req, res, next);
 
       expect(res.status).toHaveBeenCalledWith(401);
-      expect(res.json).toHaveBeenCalledWith({
-        error: 'Token não fornecido ou formato inválido',
-      });
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({
+          error: expect.objectContaining({
+            code: 'UNAUTHORIZED',
+          }),
+        })
+      );
       expect(next).not.toHaveBeenCalled();
     });
 
@@ -32,9 +36,13 @@ describe('Auth Middlewares', () => {
       authenticate(req, res, next);
 
       expect(res.status).toHaveBeenCalledWith(401);
-      expect(res.json).toHaveBeenCalledWith({
-        error: 'Token não fornecido ou formato inválido',
-      });
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({
+          error: expect.objectContaining({
+            code: 'UNAUTHORIZED',
+          }),
+        })
+      );
       expect(next).not.toHaveBeenCalled();
     });
 
@@ -43,7 +51,13 @@ describe('Auth Middlewares', () => {
       authenticate(req, res, next);
 
       expect(res.status).toHaveBeenCalledWith(401);
-      expect(res.json).toHaveBeenCalledWith({ error: 'Token inválido' });
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({
+          error: expect.objectContaining({
+            code: 'INVALID_TOKEN',
+          }),
+        })
+      );
       expect(next).not.toHaveBeenCalled();
     });
 
@@ -57,13 +71,19 @@ describe('Auth Middlewares', () => {
       authenticate(req, res, next);
 
       expect(res.status).toHaveBeenCalledWith(401);
-      expect(res.json).toHaveBeenCalledWith({ error: 'Token expirado' });
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({
+          error: expect.objectContaining({
+            code: 'TOKEN_EXPIRED',
+          }),
+        })
+      );
       expect(next).not.toHaveBeenCalled();
     });
 
-    it('deve injetar req.user e chamar next() para token válido', () => {
+    it('deve injetar req.user com id e sub e chamar next() para token válido', () => {
       const validToken = jwt.sign(
-        { id: 'user_id_123', role: 'professor', emailVerified: true },
+        { sub: 'user_id_123', id: 'user_id_123', role: 'professor', emailVerified: true },
         secret,
         { expiresIn: '1h' }
       );
@@ -72,6 +92,7 @@ describe('Auth Middlewares', () => {
 
       expect(req.user).toBeDefined();
       expect(req.user.id).toBe('user_id_123');
+      expect(req.user.sub).toBe('user_id_123');
       expect(req.user.role).toBe('professor');
       expect(req.user.emailVerified).toBe(true);
       expect(next).toHaveBeenCalled();
@@ -95,7 +116,11 @@ describe('Auth Middlewares', () => {
       middleware(req, res, next);
 
       expect(res.status).toHaveBeenCalledWith(401);
-      expect(res.json).toHaveBeenCalledWith({ error: 'Não autenticado' });
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({
+          error: expect.objectContaining({ code: 'UNAUTHORIZED' }),
+        })
+      );
       expect(next).not.toHaveBeenCalled();
     });
 
@@ -105,9 +130,11 @@ describe('Auth Middlewares', () => {
       middleware(req, res, next);
 
       expect(res.status).toHaveBeenCalledWith(403);
-      expect(res.json).toHaveBeenCalledWith({
-        error: 'Acesso negado para o seu perfil',
-      });
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({
+          error: expect.objectContaining({ code: 'FORBIDDEN' }),
+        })
+      );
       expect(next).not.toHaveBeenCalled();
     });
 
@@ -137,7 +164,11 @@ describe('Auth Middlewares', () => {
       requireEmailVerified(req, res, next);
 
       expect(res.status).toHaveBeenCalledWith(401);
-      expect(res.json).toHaveBeenCalledWith({ error: 'Não autenticado' });
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({
+          error: expect.objectContaining({ code: 'UNAUTHORIZED' }),
+        })
+      );
       expect(next).not.toHaveBeenCalled();
     });
 
@@ -146,9 +177,11 @@ describe('Auth Middlewares', () => {
       requireEmailVerified(req, res, next);
 
       expect(res.status).toHaveBeenCalledWith(403);
-      expect(res.json).toHaveBeenCalledWith({
-        error: 'Confirmação de e-mail obrigatória. Por favor, verifique sua caixa de entrada.',
-      });
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({
+          error: expect.objectContaining({ code: 'EMAIL_VERIFICATION_REQUIRED' }),
+        })
+      );
       expect(next).not.toHaveBeenCalled();
     });
 

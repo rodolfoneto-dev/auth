@@ -1,3 +1,4 @@
+require('dotenv').config({ quiet: true });
 const mongoose = require('mongoose');
 const User = require('./User');
 
