@@ -1,3 +1,5 @@
+process.env.JWT_SECRET = process.env.JWT_SECRET || 'supersecret_for_tests';
+
 const request = require('supertest');
 const jwt = require('jsonwebtoken');
 const app = require('../server');
@@ -11,12 +13,12 @@ jest.mock('../services/email');
 describe('Auth Service - Lead Capture & Admin Endpoints', () => {
   const adminToken = jwt.sign(
     { sub: 'admin-123', id: 'admin-123', role: 'admin', emailVerified: true },
-    process.env.JWT_SECRET || 'supersecret_for_tests'
+    process.env.JWT_SECRET
   );
 
   const studentToken = jwt.sign(
     { sub: 'student-123', id: 'student-123', role: 'aluno', emailVerified: true },
-    process.env.JWT_SECRET || 'supersecret_for_tests'
+    process.env.JWT_SECRET
   );
 
   beforeEach(() => {
