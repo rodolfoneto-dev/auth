@@ -2,7 +2,8 @@ const express = require('express');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const User = require('../models/User');
-const { authenticate } = require('../middlewares/auth');
+const Lead = require('../models/Lead');
+const { authenticate, checkRole } = require('../middlewares/auth');
 const { authLimiter, recoveryLimiter } = require('../middlewares/rateLimit');
 const { sendVerificationEmail, sendPasswordResetEmail } = require('../services/email');
 
@@ -1124,5 +1125,338 @@ router.get('/me', authenticate, async (req, res) => {
     });
   }
 });
+// ==========================================
+// 8. Captação de Leads (Chat / Landing Page)
+// ==========================================
+
+/**
+ * @openapi
+ * /auth/leads:
+ *   post:
+ *     summary: Registrar novo lead captado pelo chat
+ *     description: Salva os dados do lead coletados pela conversa no LeadChatWidget ou formulário institucional.
+ *     tags:
+ *       - Leads
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - name
+ *               - phone
+ *               - email
+ *             properties:
+ *               name:
+ *                 type: string
+ *               phone:
+ *                 type: string
+ *               email:
+ *                 type: string
+ *               level:
+ *                 type: string
+ *               plan:
+ *                 type: string
+ *                 enum: [start, pro, vip, consult]
+ *               verifiedHuman:
+ *                 type: boolean
+ *               verificationStrategy:
+ *                 type: string
+ *               verificationToken:
+ *                 type: string
+ *     responses:
+ *       201:
+ *         description: Lead cadastrado com sucesso
+ *       400:
+ *         description: Dados obrigatórios ausentes
+ */
+router.post('/leads', async (req, res) => {
+  try {
+    const {
+      name,
+      phone,
+      email,
+      level,
+      plan,
+      verifiedHuman,
+      verificationStrategy,
+      verificationToken,
+    } = req.body;
+
+    if (!name || !phone || !email) {
+      return res.status(400).json({
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'Nome, telefone WhatsApp e e-mail são obrigatórios',
+        },
+      });
+    }
+
+    const cleanEmail = normalizeEmail(email);
+
+    const lead = new Lead({
+      name: name.trim(),
+      phone: phone.trim(),
+      email: cleanEmail,
+      level: level || 'Iniciante do zero',
+      plan: plan || 'pro',
+      verifiedHuman: Boolean(verifiedHuman),
+      verificationStrategy: verificationStrategy || 'fox-captcha',
+      verificationToken: verificationToken || null,
+      status: 'new',
+    });
+
+    await lead.save();
+
+    return res.status(201).json({
+      message: 'Lead registrado com sucesso!',
+      lead,
+    });
+  } catch (err) {
+    return res.status(500).json({
+      error: {
+        code: 'INTERNAL_SERVER_ERROR',
+        message: 'Erro interno ao salvar lead',
+      },
+    });
+  }
+});
+
+// ==========================================
+// 9. Módulo Administrativo (Admin Only)
+// ==========================================
+
+/**
+ * @openapi
+ * /auth/admin/leads:
+ *   get:
+ *     summary: Listar todos os leads captados (Admin)
+ *     tags:
+ *       - Admin
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: status
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: plan
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: search
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Lista de leads retornada
+ *       403:
+ *         description: Acesso restrito a administradores
+ */
+router.get('/admin/leads', authenticate, checkRole('admin'), async (req, res) => {
+  try {
+    const { status, plan, search } = req.query;
+    const filter = {};
+
+    if (status && status !== 'all') {
+      filter.status = status;
+    }
+    if (plan && plan !== 'all') {
+      filter.plan = plan;
+    }
+    if (search) {
+      const searchRegex = new RegExp(search.trim(), 'i');
+      filter.$or = [{ name: searchRegex }, { email: searchRegex }, { phone: searchRegex }];
+    }
+
+    const leads = await Lead.find(filter).sort({ createdAt: -1 });
+
+    return res.status(200).json({
+      total: leads.length,
+      leads,
+    });
+  } catch (err) {
+    return res.status(500).json({
+      error: {
+        code: 'INTERNAL_SERVER_ERROR',
+        message: 'Erro ao listar leads',
+      },
+    });
+  }
+});
+
+/**
+ * @openapi
+ * /auth/admin/leads/{id}/status:
+ *   patch:
+ *     summary: Atualizar status e notas de um lead (Admin)
+ *     tags:
+ *       - Admin
+ */
+router.patch('/admin/leads/:id/status', authenticate, checkRole('admin'), async (req, res) => {
+  try {
+    const { status, notes } = req.body;
+    const allowedStatuses = ['new', 'contacted', 'enrolled', 'lost'];
+
+    if (status && !allowedStatuses.includes(status)) {
+      return res.status(400).json({
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'Status inválido. Permitidos: new, contacted, enrolled, lost',
+        },
+      });
+    }
+
+    const updateData = {};
+    if (status) updateData.status = status;
+    if (typeof notes === 'string') updateData.notes = notes;
+
+    const lead = await Lead.findByIdAndUpdate(req.params.id, updateData, { new: true });
+    if (!lead) {
+      return res.status(404).json({
+        error: {
+          code: 'LEAD_NOT_FOUND',
+          message: 'Lead não encontrado',
+        },
+      });
+    }
+
+    return res.status(200).json({
+      message: 'Status do lead atualizado com sucesso',
+      lead,
+    });
+  } catch (err) {
+    return res.status(500).json({
+      error: {
+        code: 'INTERNAL_SERVER_ERROR',
+        message: 'Erro ao atualizar lead',
+      },
+    });
+  }
+});
+
+/**
+ * @openapi
+ * /auth/admin/leads/{id}:
+ *   delete:
+ *     summary: Excluir um lead (Admin)
+ *     tags:
+ *       - Admin
+ */
+router.delete('/admin/leads/:id', authenticate, checkRole('admin'), async (req, res) => {
+  try {
+    const lead = await Lead.findByIdAndDelete(req.params.id);
+    if (!lead) {
+      return res.status(404).json({
+        error: {
+          code: 'LEAD_NOT_FOUND',
+          message: 'Lead não encontrado',
+        },
+      });
+    }
+
+    return res.status(200).json({
+      message: 'Lead excluído com sucesso',
+    });
+  } catch (err) {
+    return res.status(500).json({
+      error: {
+        code: 'INTERNAL_SERVER_ERROR',
+        message: 'Erro ao excluir lead',
+      },
+    });
+  }
+});
+
+/**
+ * @openapi
+ * /auth/admin/users:
+ *   get:
+ *     summary: Listar todos os usuários da plataforma (Admin)
+ *     tags:
+ *       - Admin
+ */
+router.get('/admin/users', authenticate, checkRole('admin'), async (req, res) => {
+  try {
+    const { role, search } = req.query;
+    const filter = {};
+
+    if (role && role !== 'all') {
+      filter.role = role;
+    }
+    if (search) {
+      const searchRegex = new RegExp(search.trim(), 'i');
+      filter.$or = [{ name: searchRegex }, { email: searchRegex }];
+    }
+
+    const users = await User.find(filter)
+      .select('-password -refreshTokens -passwordResetToken -passwordResetExpires -emailVerificationToken')
+      .sort({ createdAt: -1 });
+
+    return res.status(200).json({
+      total: users.length,
+      users,
+    });
+  } catch (err) {
+    return res.status(500).json({
+      error: {
+        code: 'INTERNAL_SERVER_ERROR',
+        message: 'Erro ao listar usuários',
+      },
+    });
+  }
+});
+
+/**
+ * @openapi
+ * /auth/admin/users/{id}/role:
+ *   patch:
+ *     summary: Alterar papel (role) de um usuário (Admin)
+ *     tags:
+ *       - Admin
+ */
+router.patch('/admin/users/:id/role', authenticate, checkRole('admin'), async (req, res) => {
+  try {
+    const { role } = req.body;
+    const allowedRoles = ['aluno', 'professor', 'admin'];
+
+    if (!role || !allowedRoles.includes(role)) {
+      return res.status(400).json({
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'Papel inválido. Permitidos: aluno, professor, admin',
+        },
+      });
+    }
+
+    const user = await User.findByIdAndUpdate(req.params.id, { role }, { new: true }).select(
+      '-password -refreshTokens'
+    );
+
+    if (!user) {
+      return res.status(404).json({
+        error: {
+          code: 'USER_NOT_FOUND',
+          message: 'Usuário não encontrado',
+        },
+      });
+    }
+
+    return res.status(200).json({
+      message: 'Papel do usuário atualizado com sucesso',
+      user,
+    });
+  } catch (err) {
+    return res.status(500).json({
+      error: {
+        code: 'INTERNAL_SERVER_ERROR',
+        message: 'Erro ao atualizar papel do usuário',
+      },
+    });
+  }
+});
 
 module.exports = router;
+
