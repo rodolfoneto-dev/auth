@@ -113,8 +113,45 @@ const generateAccessToken = (user) => {
  *       500:
  *         description: Erro interno do servidor
  */
+const isRegistrationBlocked = () => {
+  return (
+    process.env.BLOCK_REGISTRATION === '1' ||
+    process.env.BLOCK_REGISTRATION === 'true' ||
+    process.env.VITE_BLOCK_REGISTRATION === '1' ||
+    process.env.VITE_BLOCK_REGISTRATION === 'true'
+  );
+};
+
+/**
+ * @openapi
+ * /auth/config:
+ *   get:
+ *     summary: Configurações públicas de autenticação
+ *     description: Retorna flags de configuração pública da plataforma (ex. bloqueio de cadastro para staging).
+ *     tags:
+ *       - Autenticação
+ *     responses:
+ *       200:
+ *         description: Configurações obtidas com sucesso
+ */
+router.get('/config', (req, res) => {
+  return res.json({
+    registrationBlocked: isRegistrationBlocked(),
+  });
+});
+
 router.post('/register', authLimiter, async (req, res) => {
   try {
+    // Bloqueio de novos cadastros (Staging / Manutenção / Homologação controlada)
+    if (isRegistrationBlocked()) {
+      return res.status(403).json({
+        error: {
+          code: 'REGISTRATION_DISABLED',
+          message: 'Novos cadastros estão temporariamente suspensos (ambiente de testes/staging).',
+        },
+      });
+    }
+
     const { name, email, password, role } = req.body;
 
     if (!name || !email || !password) {

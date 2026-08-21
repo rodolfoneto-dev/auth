@@ -13,6 +13,9 @@ WORKDIR /app
 # Copia manifestos primeiro para aproveitar cache de camadas
 COPY package.json package-lock.json ./
 
+# Garante ferramentas de compilação C++ para módulos nativos (bcrypt) em qualquer arquitetura (x86_64 / ARM64 Ampere)
+RUN apk add --no-cache python3 make g++
+
 # Instala apenas dependências de produção de forma determinística
 RUN npm ci --omit=dev
 

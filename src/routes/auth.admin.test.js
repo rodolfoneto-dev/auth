@@ -289,4 +289,47 @@ describe('Auth Service - Lead Capture & Admin Endpoints', () => {
       expect(res.status).toBe(403);
     });
   });
+
+  describe('BLOCK_REGISTRATION (Controle de Staging)', () => {
+    afterEach(() => {
+      delete process.env.BLOCK_REGISTRATION;
+    });
+
+    it('deve bloquear /auth/register com 403 e REGISTRATION_DISABLED quando BLOCK_REGISTRATION=1', async () => {
+      process.env.BLOCK_REGISTRATION = '1';
+
+      const res = await request(app)
+        .post('/auth/register')
+        .send({
+          name: 'Tentativa Aluno',
+          email: 'staging@test.com',
+          password: 'senhaSegura123@',
+        });
+
+      expect(res.status).toBe(403);
+      expect(res.body.error.code).toBe('REGISTRATION_DISABLED');
+      expect(res.body.error.message).toContain('temporariamente suspensos');
+    });
+
+    it('deve permitir cadastro quando BLOCK_REGISTRATION não estiver ativo', async () => {
+      delete process.env.BLOCK_REGISTRATION;
+
+      User.prototype.generateEmailVerificationToken = jest.fn().mockReturnValue('raw-verify-token');
+      User.prototype.generateRefreshToken = jest.fn().mockReturnValue('raw-refresh-token');
+      User.prototype._id = { toString: () => 'new-user-123' };
+      User.prototype.role = 'aluno';
+      User.prototype.save = jest.fn().mockResolvedValue(true);
+
+      const res = await request(app)
+        .post('/auth/register')
+        .send({
+          name: 'Aluno Permitido',
+          email: 'permitido@test.com',
+          password: 'senhaSegura123@',
+        });
+
+      expect(res.status).toBe(201);
+      expect(res.body.message).toContain('sucesso');
+    });
+  });
 });

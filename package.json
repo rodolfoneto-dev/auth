@@ -10,7 +10,7 @@
     "test:all": "jest --runInBand",
     "seed": "node ../pipelines/scripts/seed-english-fox.cjs",
     "seed:admin": "node scripts/seed-admin.js",
-    "mcp": "node ai/mcp/server.js"
+    "mcp": "node .ai/mcp/server.js"
   },
   "keywords": [],
   "author": "",
