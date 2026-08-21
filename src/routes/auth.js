@@ -1505,12 +1505,31 @@ router.patch('/admin/users/:id/role', authenticate, checkRole('admin'), async (r
       });
     }
 
+    const currentUserId = req.user?._id || req.user?.id || req.user?.sub;
+    if (currentUserId && currentUserId.toString() === req.params.id) {
+      return res.status(403).json({
+        error: {
+          code: 'FORBIDDEN_SELF_MODIFICATION',
+          message: 'Não é permitido alterar o próprio papel de administrador para evitar perda de acesso',
+        },
+      });
+    }
+
     const user = await User.findById(req.params.id);
     if (!user) {
       return res.status(404).json({
         error: {
           code: 'USER_NOT_FOUND',
           message: 'Usuário não encontrado',
+        },
+      });
+    }
+
+    if (user.role === 'admin' && role !== 'admin') {
+      return res.status(403).json({
+        error: {
+          code: 'ADMIN_ROLE_PROTECTED',
+          message: 'Contas com papel de Administrador são protegidas contra rebaixamento direto',
         },
       });
     }
@@ -1579,12 +1598,31 @@ router.patch('/admin/users/:id/status', authenticate, checkRole('admin'), async 
       });
     }
 
+    const currentUserId = req.user?._id || req.user?.id || req.user?.sub;
+    if (currentUserId && currentUserId.toString() === req.params.id && status !== 'active') {
+      return res.status(403).json({
+        error: {
+          code: 'FORBIDDEN_SELF_SUSPENSION',
+          message: 'Não é permitido suspender ou inativar a própria conta de administrador',
+        },
+      });
+    }
+
     const user = await User.findById(req.params.id);
     if (!user) {
       return res.status(404).json({
         error: {
           code: 'USER_NOT_FOUND',
           message: 'Usuário não encontrado',
+        },
+      });
+    }
+
+    if (user.role === 'admin' && status !== 'active') {
+      return res.status(403).json({
+        error: {
+          code: 'ADMIN_ACCOUNT_PROTECTED',
+          message: 'Contas de administrador são protegidas contra suspensão',
         },
       });
     }

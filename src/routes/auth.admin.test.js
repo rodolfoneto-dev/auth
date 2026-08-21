@@ -173,6 +173,35 @@ describe('Auth Service - Lead Capture & Admin Endpoints', () => {
       expect(res.body.user.role).toBe('professor');
       expect(mockUser.save).toHaveBeenCalled();
     });
+
+    it('deve bloquear tentativa de auto-modificação de papel pelo admin logado', async () => {
+      const res = await request(app)
+        .patch('/auth/admin/users/admin-123/role')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({ role: 'aluno' });
+
+      expect(res.status).toBe(403);
+      expect(res.body.error.code).toBe('FORBIDDEN_SELF_MODIFICATION');
+    });
+
+    it('deve proteger contas de administrador contra rebaixamento direto', async () => {
+      const mockAdmin = {
+        _id: 'admin-999',
+        name: 'Outro Admin',
+        email: 'admin2@test.com',
+        role: 'admin',
+        save: jest.fn().mockResolvedValue(true),
+      };
+      User.findById = jest.fn().mockResolvedValue(mockAdmin);
+
+      const res = await request(app)
+        .patch('/auth/admin/users/admin-999/role')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({ role: 'aluno' });
+
+      expect(res.status).toBe(403);
+      expect(res.body.error.code).toBe('ADMIN_ROLE_PROTECTED');
+    });
   });
 
   describe('PATCH /auth/admin/users/:id/status', () => {
@@ -198,6 +227,16 @@ describe('Auth Service - Lead Capture & Admin Endpoints', () => {
       expect(res.body.user.status).toBe('suspended');
       expect(mockUser.revokeAllRefreshTokens).toHaveBeenCalled();
       expect(mockUser.save).toHaveBeenCalled();
+    });
+
+    it('deve bloquear tentativa de auto-suspensão pelo admin logado', async () => {
+      const res = await request(app)
+        .patch('/auth/admin/users/admin-123/status')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({ status: 'suspended' });
+
+      expect(res.status).toBe(403);
+      expect(res.body.error.code).toBe('FORBIDDEN_SELF_SUSPENSION');
     });
 
     it('deve rejeitar status inválido com 400', async () => {

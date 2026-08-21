@@ -21,6 +21,7 @@ const authenticate = (req, res, next) => {
     });
 
     req.user = {
+      _id: decoded.sub || decoded.id,
       id: decoded.sub || decoded.id,
       sub: decoded.sub || decoded.id,
       role: decoded.role,
