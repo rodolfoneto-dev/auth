@@ -289,10 +289,15 @@ describe('Auth Service - Lead Capture & Admin Endpoints', () => {
       expect(res.status).toBe(403);
     });
   });
-
   describe('BLOCK_REGISTRATION (Controle de Staging)', () => {
+    beforeEach(() => {
+      delete process.env.BLOCK_REGISTRATION;
+      delete process.env.VITE_BLOCK_REGISTRATION;
+    });
+
     afterEach(() => {
       delete process.env.BLOCK_REGISTRATION;
+      delete process.env.VITE_BLOCK_REGISTRATION;
     });
 
     it('deve bloquear /auth/register com 403 e REGISTRATION_DISABLED quando BLOCK_REGISTRATION=1', async () => {
