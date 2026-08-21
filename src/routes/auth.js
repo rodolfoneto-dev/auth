@@ -3,6 +3,7 @@ const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const User = require('../models/User');
 const Lead = require('../models/Lead');
+const AuditLog = require('../models/AuditLog');
 const { authenticate, checkRole } = require('../middlewares/auth');
 const { authLimiter, recoveryLimiter } = require('../middlewares/rateLimit');
 const { sendVerificationEmail, sendPasswordResetEmail } = require('../services/email');
@@ -22,6 +23,7 @@ const generateAccessToken = (user) => {
       sub: user._id.toString(),
       id: user._id.toString(),
       role: user.role,
+      status: user.status || 'active',
       emailVerified: Boolean(user.emailVerified),
       iss: process.env.JWT_ISSUER || 'auth-service',
       aud: process.env.JWT_AUDIENCE || 'platform',
@@ -477,6 +479,15 @@ router.post('/login', authLimiter, async (req, res) => {
         error: {
           code: 'INVALID_CREDENTIALS',
           message: 'Credenciais inválidas',
+        },
+      });
+    }
+
+    if (user.status === 'suspended') {
+      return res.status(403).json({
+        error: {
+          code: 'ACCOUNT_SUSPENDED',
+          message: 'Sua conta está suspensa (inadimplência ou inatividade). Regularize seu acesso com o suporte.',
         },
       });
     }
@@ -1309,11 +1320,7 @@ router.patch('/admin/leads/:id/status', authenticate, checkRole('admin'), async 
       });
     }
 
-    const updateData = {};
-    if (status) updateData.status = status;
-    if (typeof notes === 'string') updateData.notes = notes;
-
-    const lead = await Lead.findByIdAndUpdate(req.params.id, updateData, { new: true });
+    const lead = await Lead.findById(req.params.id);
     if (!lead) {
       return res.status(404).json({
         error: {
@@ -1321,6 +1328,31 @@ router.patch('/admin/leads/:id/status', authenticate, checkRole('admin'), async 
           message: 'Lead não encontrado',
         },
       });
+    }
+
+    const previousStatus = lead.status;
+    if (status) lead.status = status;
+    if (typeof notes === 'string') lead.notes = notes;
+    await lead.save();
+
+    // Grava histórico de auditoria
+    try {
+      const actor = await getActorInfo(req);
+      await AuditLog.create({
+        actorId: actor.id,
+        actorName: actor.name,
+        actorEmail: actor.email,
+        targetUserId: lead._id.toString(),
+        targetType: 'lead',
+        targetUserName: lead.name,
+        targetUserEmail: lead.email,
+        action: 'LEAD_STATUS_CHANGE',
+        previousValue: previousStatus,
+        newValue: lead.status,
+        details: `Status do Lead alterado de ${previousStatus} para ${lead.status} (Plano: ${lead.plan || 'N/A'})`,
+      });
+    } catch (logErr) {
+      console.error('[AuditLog] Erro ao gravar log de lead status:', logErr);
     }
 
     return res.status(200).json({
@@ -1355,6 +1387,26 @@ router.delete('/admin/leads/:id', authenticate, checkRole('admin'), async (req, 
           message: 'Lead não encontrado',
         },
       });
+    }
+
+    // Grava histórico de auditoria
+    try {
+      const actor = await getActorInfo(req);
+      await AuditLog.create({
+        actorId: actor.id,
+        actorName: actor.name,
+        actorEmail: actor.email,
+        targetUserId: lead._id.toString(),
+        targetType: 'lead',
+        targetUserName: lead.name,
+        targetUserEmail: lead.email,
+        action: 'LEAD_DELETED',
+        previousValue: lead.status,
+        newValue: 'deleted',
+        details: `Lead ${lead.name} (${lead.email} - ${lead.phone || 'Sem telefone'}) excluído do CRM`,
+      });
+    } catch (logErr) {
+      console.error('[AuditLog] Erro ao gravar log de lead deletion:', logErr);
     }
 
     return res.status(200).json({
@@ -1409,6 +1461,28 @@ router.get('/admin/users', authenticate, checkRole('admin'), async (req, res) =>
   }
 });
 
+// Helper para capturar os dados do Admin responsável pela alteração
+const getActorInfo = async (req) => {
+  let actorName = 'Admin Master';
+  let actorEmail = 'admin@englishfox.com.br';
+  if (req.user?.id) {
+    try {
+      const adminUser = await User.findById(req.user.id);
+      if (adminUser) {
+        actorName = adminUser.name;
+        actorEmail = adminUser.email;
+      }
+    } catch {
+      // fallback
+    }
+  }
+  return {
+    actorId: req.user?.id || 'admin',
+    actorName,
+    actorEmail,
+  };
+};
+
 /**
  * @openapi
  * /auth/admin/users/{id}/role:
@@ -1431,10 +1505,7 @@ router.patch('/admin/users/:id/role', authenticate, checkRole('admin'), async (r
       });
     }
 
-    const user = await User.findByIdAndUpdate(req.params.id, { role }, { new: true }).select(
-      '-password -refreshTokens'
-    );
-
+    const user = await User.findById(req.params.id);
     if (!user) {
       return res.status(404).json({
         error: {
@@ -1444,15 +1515,146 @@ router.patch('/admin/users/:id/role', authenticate, checkRole('admin'), async (r
       });
     }
 
+    const previousRole = user.role || 'aluno';
+    if (previousRole !== role) {
+      user.role = role;
+      await user.save();
+
+      const actor = await getActorInfo(req);
+      await AuditLog.create({
+        actorId: actor.actorId,
+        actorName: actor.actorName,
+        actorEmail: actor.actorEmail,
+        targetUserId: user._id.toString(),
+        targetUserName: user.name,
+        targetUserEmail: user.email,
+        action: 'ROLE_CHANGE',
+        previousValue: previousRole,
+        newValue: role,
+        details: `Papel alterado de ${previousRole} para ${role}`,
+      });
+    }
+
     return res.status(200).json({
       message: 'Papel do usuário atualizado com sucesso',
-      user,
+      user: {
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        status: user.status,
+        emailVerified: user.emailVerified,
+      },
     });
   } catch (err) {
     return res.status(500).json({
       error: {
         code: 'INTERNAL_SERVER_ERROR',
         message: 'Erro ao atualizar papel do usuário',
+      },
+    });
+  }
+});
+
+/**
+ * @openapi
+ * /auth/admin/users/{id}/status:
+ *   patch:
+ *     summary: Alterar status da conta do usuário (Admin)
+ *     description: Permite ao administrador alterar o status de um usuário (active, suspended, pending) e gera log de auditoria.
+ *     tags:
+ *       - Admin
+ */
+router.patch('/admin/users/:id/status', authenticate, checkRole('admin'), async (req, res) => {
+  try {
+    const { status } = req.body;
+    const allowedStatuses = ['active', 'suspended', 'pending'];
+
+    if (!status || !allowedStatuses.includes(status)) {
+      return res.status(400).json({
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'Status inválido. Permitidos: active, suspended, pending',
+        },
+      });
+    }
+
+    const user = await User.findById(req.params.id);
+    if (!user) {
+      return res.status(404).json({
+        error: {
+          code: 'USER_NOT_FOUND',
+          message: 'Usuário não encontrado',
+        },
+      });
+    }
+
+    const previousStatus = user.status || 'active';
+    if (previousStatus !== status) {
+      user.status = status;
+      if (status === 'suspended') {
+        user.revokeAllRefreshTokens();
+      }
+      await user.save();
+
+      const actor = await getActorInfo(req);
+      await AuditLog.create({
+        actorId: actor.actorId,
+        actorName: actor.actorName,
+        actorEmail: actor.actorEmail,
+        targetUserId: user._id.toString(),
+        targetUserName: user.name,
+        targetUserEmail: user.email,
+        action: 'STATUS_CHANGE',
+        previousValue: previousStatus,
+        newValue: status,
+        details: `Status alterado de ${previousStatus} para ${status}`,
+      });
+    }
+
+    return res.status(200).json({
+      message: 'Status do usuário atualizado com sucesso',
+      user: {
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        status: user.status,
+        emailVerified: user.emailVerified,
+      },
+    });
+  } catch (err) {
+    return res.status(500).json({
+      error: {
+        code: 'INTERNAL_SERVER_ERROR',
+        message: 'Erro ao atualizar status do usuário',
+      },
+    });
+  }
+});
+
+/**
+ * @openapi
+ * /auth/admin/audit-logs:
+ *   get:
+ *     summary: Listar histórico de auditoria e alterações administrativas (Admin)
+ *     tags:
+ *       - Admin
+ */
+router.get('/admin/audit-logs', authenticate, checkRole('admin'), async (req, res) => {
+  try {
+    const limit = Math.min(Number(req.query.limit) || 50, 100);
+    const logs = await AuditLog.find().sort({ createdAt: -1 }).limit(limit);
+
+    return res.status(200).json({
+      total: logs.length,
+      logs,
+    });
+  } catch (err) {
+    return res.status(500).json({
+      error: {
+        code: 'INTERNAL_SERVER_ERROR',
+        message: 'Erro ao listar histórico de auditoria',
       },
     });
   }

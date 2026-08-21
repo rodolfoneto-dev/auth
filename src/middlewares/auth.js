@@ -24,6 +24,7 @@ const authenticate = (req, res, next) => {
       id: decoded.sub || decoded.id,
       sub: decoded.sub || decoded.id,
       role: decoded.role,
+      status: decoded.status || 'active',
       emailVerified: Boolean(decoded.emailVerified),
     };
     next();
@@ -93,8 +94,45 @@ const requireEmailVerified = (req, res, next) => {
   next();
 };
 
+// Middleware para exigir conta ativa (bloqueia suspensa/inadimplente ou pendente)
+const requireActiveAccount = (req, res, next) => {
+  if (!req.user) {
+    return res.status(401).json({
+      error: {
+        code: 'UNAUTHORIZED',
+        message: 'Não autenticado',
+      },
+    });
+  }
+
+  if (req.user.role === 'admin') {
+    return next();
+  }
+
+  if (req.user.status === 'suspended') {
+    return res.status(403).json({
+      error: {
+        code: 'ACCOUNT_SUSPENDED',
+        message: 'Sua conta está suspensa (inadimplência ou inatividade). Regularize seu plano para acessar o sistema.',
+      },
+    });
+  }
+
+  if (req.user.status === 'pending') {
+    return res.status(403).json({
+      error: {
+        code: 'ACCOUNT_PENDING',
+        message: 'Sua conta está aguardando aprovação ou confirmação de pagamento.',
+      },
+    });
+  }
+
+  next();
+};
+
 module.exports = {
   authenticate,
   checkRole,
   requireEmailVerified,
+  requireActiveAccount,
 };

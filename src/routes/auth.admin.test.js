@@ -5,9 +5,11 @@ const jwt = require('jsonwebtoken');
 const app = require('../server');
 const Lead = require('../models/Lead');
 const User = require('../models/User');
+const AuditLog = require('../models/AuditLog');
 
 jest.mock('../models/Lead');
 jest.mock('../models/User');
+jest.mock('../models/AuditLog');
 jest.mock('../services/email');
 
 describe('Auth Service - Lead Capture & Admin Endpoints', () => {
@@ -87,8 +89,16 @@ describe('Auth Service - Lead Capture & Admin Endpoints', () => {
 
   describe('PATCH /auth/admin/leads/:id/status', () => {
     it('deve atualizar o status de um lead para matriculado', async () => {
-      const updatedLead = { _id: 'lead-1', status: 'enrolled', notes: 'Matrícula efetuada' };
-      Lead.findByIdAndUpdate = jest.fn().mockResolvedValue(updatedLead);
+      const mockLead = {
+        _id: 'lead-1',
+        name: 'Lead Alvo',
+        email: 'lead@test.com',
+        phone: '11999999999',
+        plan: 'pro',
+        status: 'new',
+        save: jest.fn().mockResolvedValue(true),
+      };
+      Lead.findById = jest.fn().mockResolvedValue(mockLead);
 
       const res = await request(app)
         .patch('/auth/admin/leads/lead-1/status')
@@ -97,6 +107,27 @@ describe('Auth Service - Lead Capture & Admin Endpoints', () => {
 
       expect(res.status).toBe(200);
       expect(res.body.lead.status).toBe('enrolled');
+      expect(mockLead.save).toHaveBeenCalled();
+    });
+  });
+
+  describe('DELETE /auth/admin/leads/:id', () => {
+    it('deve excluir um lead com sucesso', async () => {
+      const mockLead = {
+        _id: 'lead-1',
+        name: 'Lead Alvo',
+        email: 'lead@test.com',
+        phone: '11999999999',
+        status: 'new',
+      };
+      Lead.findByIdAndDelete = jest.fn().mockResolvedValue(mockLead);
+
+      const res = await request(app)
+        .delete('/auth/admin/leads/lead-1')
+        .set('Authorization', `Bearer ${adminToken}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.message).toContain('Lead excluído com sucesso');
     });
   });
 
@@ -124,10 +155,14 @@ describe('Auth Service - Lead Capture & Admin Endpoints', () => {
 
   describe('PATCH /auth/admin/users/:id/role', () => {
     it('deve atualizar o papel do usuário para professor', async () => {
-      const updatedUser = { _id: 'u2', role: 'professor' };
-      User.findByIdAndUpdate = jest.fn().mockReturnValue({
-        select: jest.fn().mockResolvedValue(updatedUser),
-      });
+      const mockUser = {
+        _id: 'u2',
+        name: 'Aluno Alvo',
+        email: 'alvo@test.com',
+        role: 'aluno',
+        save: jest.fn().mockResolvedValue(true),
+      };
+      User.findById = jest.fn().mockResolvedValue(mockUser);
 
       const res = await request(app)
         .patch('/auth/admin/users/u2/role')
@@ -136,6 +171,83 @@ describe('Auth Service - Lead Capture & Admin Endpoints', () => {
 
       expect(res.status).toBe(200);
       expect(res.body.user.role).toBe('professor');
+      expect(mockUser.save).toHaveBeenCalled();
+    });
+  });
+
+  describe('PATCH /auth/admin/users/:id/status', () => {
+    it('deve atualizar o status do usuário para suspended e revogar sessões', async () => {
+      const mockUser = {
+        _id: 'u2',
+        name: 'Aluno Alvo',
+        email: 'alvo@test.com',
+        role: 'aluno',
+        status: 'active',
+        emailVerified: true,
+        revokeAllRefreshTokens: jest.fn(),
+        save: jest.fn().mockResolvedValue(true),
+      };
+      User.findById = jest.fn().mockResolvedValue(mockUser);
+
+      const res = await request(app)
+        .patch('/auth/admin/users/u2/status')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({ status: 'suspended' });
+
+      expect(res.status).toBe(200);
+      expect(res.body.user.status).toBe('suspended');
+      expect(mockUser.revokeAllRefreshTokens).toHaveBeenCalled();
+      expect(mockUser.save).toHaveBeenCalled();
+    });
+
+    it('deve rejeitar status inválido com 400', async () => {
+      const res = await request(app)
+        .patch('/auth/admin/users/u2/status')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({ status: 'invalid_status' });
+
+      expect(res.status).toBe(400);
+    });
+  });
+
+  describe('GET /auth/admin/audit-logs', () => {
+    it('deve permitir que administradores listem logs de auditoria', async () => {
+      const mockLogs = [
+        {
+          _id: 'log1',
+          actorName: 'Admin Master',
+          actorEmail: 'admin@englishfox.com.br',
+          targetUserName: 'Aluno Alvo',
+          targetUserEmail: 'alvo@test.com',
+          action: 'STATUS_CHANGE',
+          previousValue: 'active',
+          newValue: 'suspended',
+          details: 'Status alterado de active para suspended',
+          createdAt: new Date(),
+        },
+      ];
+
+      AuditLog.find = jest.fn().mockReturnValue({
+        sort: jest.fn().mockReturnValue({
+          limit: jest.fn().mockResolvedValue(mockLogs),
+        }),
+      });
+
+      const res = await request(app)
+        .get('/auth/admin/audit-logs')
+        .set('Authorization', `Bearer ${adminToken}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.total).toBe(1);
+      expect(res.body.logs[0].action).toBe('STATUS_CHANGE');
+    });
+
+    it('deve proibir que alunos acessem logs de auditoria', async () => {
+      const res = await request(app)
+        .get('/auth/admin/audit-logs')
+        .set('Authorization', `Bearer ${studentToken}`);
+
+      expect(res.status).toBe(403);
     });
   });
 });

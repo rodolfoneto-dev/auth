@@ -56,6 +56,14 @@ const userSchema = new mongoose.Schema(
       },
       default: 'aluno',
     },
+    status: {
+      type: String,
+      enum: {
+        values: ['active', 'suspended', 'pending'],
+        message: 'Status inválido. Valores permitidos: active, suspended, pending',
+      },
+      default: 'active',
+    },
     emailVerified: {
       type: Boolean,
       default: false,
