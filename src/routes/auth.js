@@ -542,10 +542,12 @@ router.post('/login', authLimiter, async (req, res) => {
       refreshToken,
     });
   } catch (err) {
+    console.error('❌ [Auth Error /login]:', err);
     return res.status(500).json({
       error: {
         code: 'INTERNAL_SERVER_ERROR',
         message: 'Erro interno ao realizar login',
+        details: err.message,
       },
     });
   }

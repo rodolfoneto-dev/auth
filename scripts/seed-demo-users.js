@@ -28,10 +28,13 @@ const DEMO_USERS = [
 
 async function seedDemoUsers() {
   const mongoUri = process.env.MONGO_URI || 'mongodb://localhost:27017/englishfox_staging';
+  const isStandalone = require.main === module;
 
   try {
-    console.log(`[Seed Demo] Conectando ao MongoDB em ${mongoUri}...`);
-    await mongoose.connect(mongoUri);
+    if (mongoose.connection.readyState !== 1) {
+      console.log(`[Seed Demo] Conectando ao MongoDB em ${mongoUri}...`);
+      await mongoose.connect(mongoUri);
+    }
 
     for (const demo of DEMO_USERS) {
       const cleanEmail = demo.email.trim().toLowerCase();
@@ -58,11 +61,13 @@ async function seedDemoUsers() {
     }
 
     console.log('[Seed Demo] ✨ Todos os usuários demo foram persistidos com sucesso!');
-    await mongoose.disconnect();
-    if (require.main === module) process.exit(0);
+    if (isStandalone) {
+      await mongoose.disconnect();
+      process.exit(0);
+    }
   } catch (err) {
     console.error('[Seed Demo] ❌ Erro ao executar seed:', err);
-    if (require.main === module) process.exit(1);
+    if (isStandalone) process.exit(1);
   }
 }
 
