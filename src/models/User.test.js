@@ -15,6 +15,9 @@ describe('User Model', () => {
     expect(user.emailVerified).toBe(false);
     expect(user.emailVerificationTokenHash).toBeNull();
     expect(user.emailVerificationExpiresAt).toBeNull();
+    expect(user.passwordResetTokenHash).toBeNull();
+    expect(user.passwordResetExpiresAt).toBeNull();
+    expect(user.refreshTokens).toEqual([]);
   });
 
   it('deve falhar se campos obrigatórios estiverem ausentes', async () => {
@@ -101,18 +104,67 @@ describe('User Model', () => {
     expect(user.emailVerificationExpiresAt.getTime()).toBeGreaterThan(Date.now());
   });
 
-  it('deve remover a senha e dados do token no retorno toJSON', () => {
+  it('deve gerar token de redefinição de senha criptografado e data de expiração', () => {
+    const user = new User({
+      name: 'Teste',
+      email: 'teste@example.com',
+      password: 'secretpassword',
+    });
+
+    const rawToken = user.generatePasswordResetToken();
+
+    expect(rawToken).toBeDefined();
+    expect(typeof rawToken).toBe('string');
+    expect(rawToken.length).toBe(64); // 32 bytes hex
+    expect(user.passwordResetTokenHash).toBeDefined();
+    expect(user.passwordResetTokenHash).not.toBe(rawToken);
+    expect(user.passwordResetExpiresAt.getTime()).toBeGreaterThan(Date.now());
+  });
+
+  it('deve gerenciar refresh tokens com rotação e revogação', () => {
+    const user = new User({
+      name: 'Teste',
+      email: 'teste@example.com',
+      password: 'secretpassword',
+    });
+
+    const token1 = user.generateRefreshToken();
+    expect(token1).toBeDefined();
+    expect(user.refreshTokens.length).toBe(1);
+    expect(user.refreshTokens[0].revokedAt).toBeNull();
+
+    const token2 = user.generateRefreshToken();
+    expect(user.refreshTokens.length).toBe(2);
+
+    // Revoga token1
+    const revoked = user.revokeRefreshToken(token1, token2);
+    expect(revoked).toBe(true);
+    expect(user.refreshTokens[0].revokedAt).not.toBeNull();
+    expect(user.refreshTokens[0].replacedByTokenHash).toBeDefined();
+
+    // Revoga todos
+    user.revokeAllRefreshTokens();
+    expect(user.refreshTokens[1].revokedAt).not.toBeNull();
+  });
+
+  it('deve remover a senha, dados de tokens e refreshTokens no retorno toJSON', () => {
     const user = new User({
       name: 'Teste',
       email: 'teste@example.com',
       password: 'secretpassword',
     });
     user.generateEmailVerificationToken();
+    user.generatePasswordResetToken();
+    user.generateRefreshToken();
 
     const json = user.toJSON();
     expect(json.password).toBeUndefined();
     expect(json.emailVerificationTokenHash).toBeUndefined();
     expect(json.emailVerificationExpiresAt).toBeUndefined();
+    expect(json.passwordResetTokenHash).toBeUndefined();
+    expect(json.passwordResetExpiresAt).toBeUndefined();
+    expect(json.refreshTokens).toBeUndefined();
+    expect(json.__v).toBeUndefined();
     expect(json.email).toBe('teste@example.com');
     expect(json.emailVerified).toBe(false);
   });

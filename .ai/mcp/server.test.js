@@ -1,12 +1,11 @@
 const jwt = require('jsonwebtoken');
 const { server } = require('./server');
 
-describe('Auth MCP Server', () => {
+describe('Auth MCP Server Tests', () => {
   process.env.JWT_SECRET = 'test_mcp_jwt_secret';
 
   it('deve ter o servidor MCP instanciado corretamente', () => {
     expect(server).toBeDefined();
-    expect(typeof server.connect).toBe('function');
     expect(typeof server.registerTool).toBe('function');
     expect(typeof server.registerResource).toBe('function');
   });

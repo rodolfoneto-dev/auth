@@ -2,7 +2,7 @@
   "mcpServers": {
     "auth-service": {
       "command": "node",
-      "args": ["/caminho/absoluto/para/auth/ai/mcp/server.js"],
+      "args": ["/caminho/absoluto/para/auth/.ai/mcp/server.js"],
       "env": {
         "JWT_SECRET": "sua_chave_secreta_aqui",
         "PORT": "4000",

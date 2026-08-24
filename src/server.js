@@ -19,13 +19,21 @@ app.get('/docs.md', (req, res) => res.type('text/markdown').send(swaggerMarkdown
 app.use('/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 // Endpoint de Health Check
-app.get('/health', (req, res) => res.json({ status: 'ok' }));
+app.get(['/health', '/auth/health'], (req, res) => res.json({ status: 'ok', service: 'auth-service' }));
 app.use('/auth', authRoutes);
 
 async function startServer() {
   try {
     await mongoose.connect(process.env.MONGO_URI);
     console.log('Mongo conectado');
+
+    // Auto-seed de usuários demo em staging/dev se o banco estiver vazio
+    try {
+      const seedDemoUsers = require('../scripts/seed-demo-users');
+      await seedDemoUsers();
+    } catch (seedErr) {
+      console.warn('⚠️ [Auth Server] Aviso ao verificar seed:', seedErr.message);
+    }
 
     app.listen(process.env.PORT, () => {
       console.log(`Auth rodando na porta ${process.env.PORT}`);

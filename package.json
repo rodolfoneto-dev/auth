@@ -8,7 +8,9 @@
     "test:unit": "jest --testPathIgnorePatterns=integration",
     "test:integration": "jest --testPathPatterns=integration --runInBand",
     "test:all": "jest --runInBand",
-    "mcp": "node ai/mcp/server.js"
+    "seed": "node ../pipelines/scripts/seed-english-fox.cjs",
+    "seed:admin": "node scripts/seed-admin.js",
+    "mcp": "node .ai/mcp/server.js"
   },
   "keywords": [],
   "author": "",
