@@ -4,6 +4,13 @@ const User = require('../src/models/User');
 
 const DEMO_USERS = [
   {
+    name: 'Master Admin UP!Experience',
+    email: 'admin@upexperience.com.br',
+    password: 'senhaSegura123@',
+    role: 'admin',
+    emailVerified: true,
+  },
+  {
     name: 'Master Admin English Fox',
     email: 'admin@englishfox.com',
     password: 'senhaSegura123@',
@@ -12,9 +19,23 @@ const DEMO_USERS = [
   },
   {
     name: 'Prof. Sarah Jenkins',
+    email: 'professor@upexperience.com.br',
+    password: 'senhaSegura123@',
+    role: 'professor',
+    emailVerified: true,
+  },
+  {
+    name: 'Prof. Sarah Jenkins',
     email: 'teacher@englishfox.com.br',
     password: 'senhaSegura123@',
     role: 'professor',
+    emailVerified: true,
+  },
+  {
+    name: 'Lucas Silva (Aluno UP!)',
+    email: 'aluno@upexperience.com.br',
+    password: 'senhaSegura123@',
+    role: 'aluno',
     emailVerified: true,
   },
   {
