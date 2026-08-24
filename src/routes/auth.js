@@ -1252,7 +1252,7 @@ router.post('/leads', async (req, res) => {
       level: level || 'Iniciante do zero',
       plan: plan || 'pro',
       verifiedHuman: Boolean(verifiedHuman),
-      verificationStrategy: verificationStrategy || 'fox-captcha',
+      verificationStrategy: verificationStrategy || 'up-captcha',
       verificationToken: verificationToken || null,
       status: 'new',
     });
@@ -1502,8 +1502,8 @@ router.get('/admin/users', authenticate, checkRole('admin'), async (req, res) =>
 
 // Helper para capturar os dados do Admin responsável pela alteração
 const getActorInfo = async (req) => {
-  let actorName = 'Admin Master';
-  let actorEmail = 'admin@englishfox.com.br';
+  let actorName = 'Admin Master UP!';
+  let actorEmail = 'admin@upexperience.com.br';
   if (req.user?.id) {
     try {
       const adminUser = await User.findById(req.user.id);

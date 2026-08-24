@@ -48,7 +48,7 @@ const DEMO_USERS = [
 ];
 
 async function seedDemoUsers() {
-  const mongoUri = process.env.MONGO_URI || 'mongodb://localhost:27017/englishfox_staging';
+  const mongoUri = process.env.MONGO_URI || 'mongodb://localhost:27017/upexperience_staging';
   const isStandalone = require.main === module;
 
   try {
