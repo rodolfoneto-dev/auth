@@ -38,7 +38,7 @@ const leadSchema = new mongoose.Schema(
     },
     verificationStrategy: {
       type: String,
-      default: 'fox-captcha',
+      default: 'up-captcha',
     },
     verificationToken: {
       type: String,

@@ -2,7 +2,7 @@ require('dotenv').config({ quiet: true });
 const mongoose = require('mongoose');
 const User = require('../src/models/User');
 
-const ADMIN_NAME = process.env.ADMIN_NAME || 'Master Admin English Fox';
+const ADMIN_NAME = process.env.ADMIN_NAME || 'Master Admin UP!Experience';
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL;
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
 

@@ -4,22 +4,43 @@ const User = require('../src/models/User');
 
 const DEMO_USERS = [
   {
-    name: 'Master Admin English Fox',
-    email: 'admin@englishfox.com',
+    name: 'Master Admin UP!Experience',
+    email: 'admin@upexperience.com.br',
+    password: 'senhaSegura123@',
+    role: 'admin',
+    emailVerified: true,
+  },
+  {
+    name: 'Master Admin UP!Experience',
+    email: 'admin@upexperience.com.br',
     password: 'senhaSegura123@',
     role: 'admin',
     emailVerified: true,
   },
   {
     name: 'Prof. Sarah Jenkins',
-    email: 'teacher@englishfox.com.br',
+    email: 'professor@upexperience.com.br',
     password: 'senhaSegura123@',
     role: 'professor',
     emailVerified: true,
   },
   {
+    name: 'Prof. Sarah Jenkins',
+    email: 'teacher@upexperience.com.br',
+    password: 'senhaSegura123@',
+    role: 'professor',
+    emailVerified: true,
+  },
+  {
+    name: 'Lucas Silva (Aluno UP!)',
+    email: 'aluno@upexperience.com.br',
+    password: 'senhaSegura123@',
+    role: 'aluno',
+    emailVerified: true,
+  },
+  {
     name: 'Lucas Silva (Aluno Demo)',
-    email: 'aluno@englishfox.com.br',
+    email: 'aluno@upexperience.com.br',
     password: 'senhaSegura123@',
     role: 'aluno',
     emailVerified: true,
@@ -27,7 +48,7 @@ const DEMO_USERS = [
 ];
 
 async function seedDemoUsers() {
-  const mongoUri = process.env.MONGO_URI || 'mongodb://localhost:27017/englishfox_staging';
+  const mongoUri = process.env.MONGO_URI || 'mongodb://localhost:27017/upexperience_staging';
   const isStandalone = require.main === module;
 
   try {
