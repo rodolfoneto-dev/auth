@@ -255,7 +255,7 @@ describe('Auth Service - Lead Capture & Admin Endpoints', () => {
         {
           _id: 'log1',
           actorName: 'Admin Master',
-          actorEmail: 'admin@englishfox.com.br',
+          actorEmail: 'admin@upexperience.com.br',
           targetUserName: 'Aluno Alvo',
           targetUserEmail: 'alvo@test.com',
           action: 'STATUS_CHANGE',

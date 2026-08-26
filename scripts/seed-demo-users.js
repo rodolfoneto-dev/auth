@@ -11,8 +11,8 @@ const DEMO_USERS = [
     emailVerified: true,
   },
   {
-    name: 'Master Admin English Fox',
-    email: 'admin@englishfox.com',
+    name: 'Master Admin UP!Experience',
+    email: 'admin@upexperience.com.br',
     password: 'senhaSegura123@',
     role: 'admin',
     emailVerified: true,
@@ -26,7 +26,7 @@ const DEMO_USERS = [
   },
   {
     name: 'Prof. Sarah Jenkins',
-    email: 'teacher@englishfox.com.br',
+    email: 'teacher@upexperience.com.br',
     password: 'senhaSegura123@',
     role: 'professor',
     emailVerified: true,
@@ -40,7 +40,7 @@ const DEMO_USERS = [
   },
   {
     name: 'Lucas Silva (Aluno Demo)',
-    email: 'aluno@englishfox.com.br',
+    email: 'aluno@upexperience.com.br',
     password: 'senhaSegura123@',
     role: 'aluno',
     emailVerified: true,
