@@ -3,8 +3,16 @@
  * Suporta provedores externos (Resend, SES, SendGrid) e fallback com log formatado para desenvolvimento e testes.
  */
 
+const getAppUrl = () => {
+  const url = process.env.APP_URL || process.env.PUBLIC_URL || process.env.VITE_API_URL;
+  if (url && url.trim()) {
+    return url.trim().replace(/\/+$/, '');
+  }
+  return `http://localhost:${process.env.PORT || 4000}`;
+};
+
 const sendVerificationEmail = async (to, name, rawToken) => {
-  const appUrl = process.env.APP_URL || `http://localhost:${process.env.PORT || 4000}`;
+  const appUrl = getAppUrl();
   const verifyUrl = `${appUrl}/auth/verify-email?token=${rawToken}`;
 
   // Log formatado para ambiente local e testes
@@ -52,7 +60,7 @@ const sendVerificationEmail = async (to, name, rawToken) => {
 };
 
 const sendPasswordResetEmail = async (to, name, rawToken) => {
-  const appUrl = process.env.APP_URL || `http://localhost:${process.env.PORT || 4000}`;
+  const appUrl = getAppUrl();
   const resetUrl = `${appUrl}/auth/reset-password?token=${rawToken}`;
 
   // Log formatado para ambiente local e testes
