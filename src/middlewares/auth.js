@@ -24,6 +24,8 @@ const authenticate = (req, res, next) => {
       _id: decoded.sub || decoded.id,
       id: decoded.sub || decoded.id,
       sub: decoded.sub || decoded.id,
+      name: decoded.name || '',
+      email: decoded.email || '',
       role: decoded.role,
       status: decoded.status || 'active',
       emailVerified: Boolean(decoded.emailVerified),

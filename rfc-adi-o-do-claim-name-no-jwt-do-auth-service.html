@@ -1,0 +1,367 @@
+
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <title>RFC: Adição do claim name no JWT — UP! Experience</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, "Segoe UI", system-ui, sans-serif;
+      font-size: 14px;
+      line-height: 1.6;
+      background: #ffffff;
+      color: #1f2328;
+      padding: 40px 20px;
+    }
+    .page { max-width: 760px; margin: 0 auto; }
+
+    .rfc-header {
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      padding: 20px 24px;
+      margin-bottom: 28px;
+      background: #f7f8fa;
+    }
+    .rfc-header h1 { font-size: 1.25rem; font-weight: 700; margin-bottom: 12px; }
+    .rfc-meta { display: grid; grid-template-columns: 140px 1fr; gap: 5px 12px; font-size: 0.84rem; }
+    .rfc-meta .label { color: #57606a; font-weight: 600; }
+    .rfc-meta .value { color: #1f2328; }
+
+    .badge {
+      display: inline-block;
+      font-size: 0.7rem;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+    .badge-yellow { background: #fef9c3; color: #854d0e; border: 1px solid #fde68a; }
+    .badge-green  { background: #dcfce7; color: #15803d; border: 1px solid #bbf7d0; }
+    .badge-red    { background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
+    .badge-blue   { background: #dbeafe; color: #1d4ed8; border: 1px solid #bfdbfe; }
+
+    h2 { font-size: 1rem; font-weight: 700; margin: 28px 0 10px; border-bottom: 1px solid #e5e7eb; padding-bottom: 6px; }
+    h3 { font-size: 0.9rem; font-weight: 700; margin: 18px 0 8px; color: #1f2328; }
+    p  { color: #57606a; margin-bottom: 10px; font-size: 0.88rem; }
+
+    .callout {
+      border-left: 3px solid #3b82d4;
+      background: #f0f6ff;
+      padding: 11px 16px;
+      border-radius: 0 6px 6px 0;
+      margin-bottom: 16px;
+      font-size: 0.86rem;
+      color: #1f2328;
+    }
+    .callout.warn { border-left-color: #f59e0b; background: #fffbeb; }
+    .callout.ok   { border-left-color: #22c55e; background: #f0fdf4; }
+    .callout.red  { border-left-color: #ef4444; background: #fef2f2; }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 20px;
+      font-size: 0.84rem;
+    }
+    th {
+      background: #f7f8fa;
+      text-align: left;
+      padding: 7px 10px;
+      font-weight: 600;
+      border: 1px solid #e5e7eb;
+      color: #57606a;
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    td { padding: 7px 10px; border: 1px solid #e5e7eb; vertical-align: top; }
+    tr:nth-child(even) td { background: #fafafa; }
+
+    pre {
+      background: #0f172a;
+      color: #e2e8f0;
+      padding: 14px 16px;
+      border-radius: 6px;
+      font-size: 0.78rem;
+      overflow-x: auto;
+      margin: 8px 0 16px;
+      font-family: "Cascadia Code", "JetBrains Mono", "Fira Mono", monospace;
+      line-height: 1.6;
+    }
+    pre .comment { color: #64748b; }
+    pre .key     { color: #7dd3fc; }
+    pre .val     { color: #86efac; }
+    pre .add     { color: #4ade80; font-weight: bold; }
+    pre .minus   { color: #f87171; }
+
+    .diff-block {
+      border: 1px solid #e5e7eb;
+      border-radius: 6px;
+      overflow: hidden;
+      margin-bottom: 16px;
+      font-size: 0.8rem;
+    }
+    .diff-header {
+      background: #f7f8fa;
+      padding: 6px 12px;
+      font-size: 0.78rem;
+      color: #57606a;
+      font-weight: 600;
+      border-bottom: 1px solid #e5e7eb;
+      font-family: monospace;
+    }
+
+    .checklist { list-style: none; padding: 0; margin-bottom: 16px; }
+    .checklist li {
+      padding: 5px 0;
+      font-size: 0.87rem;
+      color: #57606a;
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+    }
+    .checklist li::before { content: "☐"; color: #94a3b8; font-size: 1rem; flex-shrink: 0; }
+
+    .signature-box {
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      padding: 16px 20px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-top: 12px;
+    }
+    .sig-field { font-size: 0.82rem; }
+    .sig-field .sig-label { color: #57606a; margin-bottom: 28px; }
+    .sig-field .sig-line { border-bottom: 1px solid #e5e7eb; margin-bottom: 4px; }
+    .sig-field .sig-name { font-size: 0.78rem; color: #94a3b8; }
+
+    .divider { height: 1px; background: #e5e7eb; margin: 24px 0; }
+
+    footer {
+      margin-top: 48px;
+      padding-top: 16px;
+      border-top: 1px solid #e5e7eb;
+      text-align: center;
+      font-size: 0.75rem;
+      color: #94a3b8;
+    }
+  </style>
+</head>
+<body>
+<div class="page">
+
+  
+  <div class="rfc-header">
+    <h1>RFC-CHAT-001 — Inclusão do claim <code>name</code> no payload JWT do <code>auth-service</code></h1>
+    <div class="rfc-meta">
+      <span class="label">Solicitante</span>     <span class="value">IBM Bob (DevOps Senior) — equipe chat-service</span>
+      <span class="label">Destinatário</span>    <span class="value">Tech Lead — responsável pelo auth-service</span>
+      <span class="label">Serviço afetado</span> <span class="value">auth-service (:4000)</span>
+      <span class="label">Serviço dependente</span> <span class="value">chat-service (:4003)</span>
+      <span class="label">Data</span>            <span class="value">2026-08</span>
+      <span class="label">Status</span>          <span class="value"><span class="badge badge-yellow">Aguardando Aprovação</span></span>
+      <span class="label">Prioridade</span>      <span class="value"><span class="badge badge-red">Bloqueante</span> — impede início da implementação dos Mongoose Models</span>
+    </div>
+  </div>
+
+  
+  <h2>1. Contexto e Motivação</h2>
+  <p>
+    Durante a fase de análise e testes de integração do <code>chat-service</code>, foi identificado que o payload JWT
+    emitido pelo <code>auth-service</code> após login (<code>POST /auth/login</code>) e refresh (<code>POST /auth/refresh</code>)
+    <strong>não inclui o campo <code>name</code></strong> do usuário.
+  </p>
+
+  <div class="callout red">
+    <strong>Problema:</strong> O <code>chat-service</code> precisa do nome do usuário para popultar os campos
+    <code>senderName</code> (em <code>Message</code>) e <code>participants[].name</code> (em <code>Room</code>)
+    de forma segura e sem chamadas extras de rede. Sem esse campo no JWT, não há fonte confiável do nome
+    no momento do handshake Socket.io.
+  </div>
+
+  <h3>Payload JWT atual (confirmado em staging)</h3>
+  <pre><span class="comment">// Decodificação do token real — POST /auth/login staging</span>
+{
+  <span class="key">"sub"</span>:            <span class="val">"6a8f61c8c0b59c2c23d2c542"</span>,
+  <span class="key">"id"</span>:             <span class="val">"6a8f61c8c0b59c2c23d2c542"</span>,
+  <span class="key">"role"</span>:           <span class="val">"aluno"</span>,
+  <span class="key">"status"</span>:         <span class="val">"active"</span>,
+  <span class="key">"emailVerified"</span>:  <span class="val">true</span>,
+  <span class="key">"iss"</span>:            <span class="val">"auth-service"</span>,
+  <span class="key">"aud"</span>:            <span class="val">"platform"</span>,
+  <span class="key">"iat"</span>:            <span class="val">1787784965</span>,
+  <span class="key">"exp"</span>:            <span class="val">1787788565</span>
+  <span class="comment">// ← sem "name", sem "email"</span>
+}</pre>
+
+  
+  <h2>2. Alteração Solicitada</h2>
+  <p>Incluir o campo <code>name</code> (e opcionalmente <code>email</code>) no payload JWT em todos os pontos de emissão do token.</p>
+
+  <h3>Payload JWT solicitado</h3>
+  <pre>{
+  <span class="key">"sub"</span>:            <span class="val">"6a8f61c8c0b59c2c23d2c542"</span>,
+  <span class="key">"id"</span>:             <span class="val">"6a8f61c8c0b59c2c23d2c542"</span>,
+  <span class="add">  "name"</span>:           <span class="add">"Lucas Silva (Aluno Demo)"</span>,   <span class="comment">// ← NOVO</span>
+  <span class="add">  "email"</span>:          <span class="add">"aluno@upexperience.com.br"</span>,  <span class="comment">// ← NOVO (opcional mas recomendado)</span>
+  <span class="key">"role"</span>:           <span class="val">"aluno"</span>,
+  <span class="key">"status"</span>:         <span class="val">"active"</span>,
+  <span class="key">"emailVerified"</span>:  <span class="val">true</span>,
+  <span class="key">"iss"</span>:            <span class="val">"auth-service"</span>,
+  <span class="key">"aud"</span>:            <span class="val">"platform"</span>,
+  <span class="key">"iat"</span>:            <span class="val">1787784965</span>,
+  <span class="key">"exp"</span>:            <span class="val">1787788565</span>
+}</pre>
+
+  <h3>Pontos de emissão afetados no auth-service</h3>
+  <table>
+    <tr><th>Endpoint</th><th>Método</th><th>Emite token?</th><th>Precisa incluir name?</th></tr>
+    <tr><td><code>/auth/login</code></td><td>POST</td><td>Sim — access token</td><td><span class="badge badge-red">Sim</span></td></tr>
+    <tr><td><code>/auth/register</code></td><td>POST</td><td>Sim — access token</td><td><span class="badge badge-red">Sim</span></td></tr>
+    <tr><td><code>/auth/refresh</code></td><td>POST</td><td>Sim — novo access token</td><td><span class="badge badge-red">Sim</span></td></tr>
+    <tr><td><code>/auth/validate</code></td><td>GET</td><td>Não emite, valida</td><td>Não</td></tr>
+    <tr><td><code>/auth/me</code></td><td>GET</td><td>Não emite, retorna user</td><td>Não</td></tr>
+  </table>
+
+  
+  <h2>3. Como o chat-service usa esse campo</h2>
+  <p>O <code>name</code> do JWT será lido uma única vez no handshake do Socket.io e armazenado em <code>socket.user</code>:</p>
+
+  <pre><span class="comment">// src/middleware/auth.middleware.js — chat-service</span>
+io.use((socket, next) =&gt; {
+  const decoded = jwt.verify(rawToken, JWT_SECRET);
+  socket.user = {
+    id:    decoded.sub || decoded.id,
+    <span class="add">    name:  decoded.name || 'Usuário',</span>  <span class="comment">// ← usa o claim JWT</span>
+    role:  decoded.role || 'aluno',
+    email: decoded.email,
+  };
+  next();
+});</pre>
+
+  <p>E será persistido nos models Mongoose:</p>
+  <pre><span class="comment">// Model: Room — participants</span>
+participants: [{
+  userId:      <span class="val">"6a8f61c8..."</span>,
+  <span class="add">    name:</span>        <span class="add">"Lucas Silva (Aluno Demo)"</span>,  <span class="comment">// ← vem de decoded.name</span>
+  role:        <span class="val">"aluno"</span>,
+  unreadCount: 0,
+}]
+
+<span class="comment">// Model: Message</span>
+{
+  senderId:   <span class="val">"6a8f61c8..."</span>,
+  <span class="add">  senderName:</span> <span class="add">"Lucas Silva (Aluno Demo)"</span>,  <span class="comment">// ← vem de decoded.name</span>
+  senderRole: <span class="val">"aluno"</span>,
+  content:    <span class="val">"Olá teacher!"</span>,
+}</pre>
+
+  
+  <h2>4. Análise de Impacto da Alteração</h2>
+
+  <div class="callout ok">
+    <strong>Impacto mínimo no auth-service:</strong> A alteração é aditiva — adiciona um campo ao payload sem remover nenhum existente. Todos os clientes que já consomem o JWT continuam funcionando sem modificação.
+  </div>
+
+  <table>
+    <tr><th>Serviço / Componente</th><th>Impacto</th><th>Ação necessária</th></tr>
+    <tr><td>auth-service (emissão)</td><td><span class="badge badge-yellow">Modificação</span></td><td>Incluir <code>name</code> (e <code>email</code>) no <code>jwt.sign()</code></td></tr>
+    <tr><td>v1-portal (frontend)</td><td><span class="badge badge-green">Zero impacto</span></td><td>Pode ler <code>decoded.name</code> do token — melhoria de UX</td></tr>
+    <tr><td>academy-service</td><td><span class="badge badge-green">Zero impacto</span></td><td>Nenhuma — campo adicional ignorado</td></tr>
+    <tr><td>genai-service</td><td><span class="badge badge-green">Zero impacto</span></td><td>Nenhuma — campo adicional ignorado</td></tr>
+    <tr><td>chat-service</td><td><span class="badge badge-blue">Dependente</span></td><td>Usa <code>decoded.name</code> no handshake e nos models</td></tr>
+    <tr><td>Tamanho do JWT</td><td><span class="badge badge-green">Negligível</span></td><td>~30–50 bytes extras no Base64 — imperceptível</td></tr>
+  </table>
+
+  
+  <h2>5. Alternativas Avaliadas e Descartadas</h2>
+  <table>
+    <tr><th>Opção</th><th>Descrição</th><th>Por que descartada</th></tr>
+    <tr>
+      <td><strong>A</strong> — Frontend envia o nome no payload</td>
+      <td><code>send_message: { content, senderName: "Lucas" }</code></td>
+      <td>Cliente controla o próprio nome — risco de spoofing. Inaceitável para produção.</td>
+    </tr>
+    <tr>
+      <td><strong>B</strong> — Buscar nome via GET /auth/me no handshake</td>
+      <td>Chamada HTTP ao auth-service a cada conexão Socket.io</td>
+      <td>Latência extra no handshake, dependência de rede síncrona, ponto de falha. Inadequado para WebSocket de baixa latência.</td>
+    </tr>
+    <tr>
+      <td><strong>C</strong> — POST /chat/rooms/direct recebe targetName do cliente</td>
+      <td>Frontend passa <code>{ targetUserId, targetName, targetRole }</code></td>
+      <td>Resolve apenas a criação de sala, não o <code>senderName</code> de cada mensagem.</td>
+    </tr>
+    <tr>
+      <td><strong>D</strong> — Incluir name no JWT <em>(escolhida)</em></td>
+      <td>auth-service inclui <code>name</code> no payload</td>
+      <td><span class="badge badge-green">Aprovada</span> — fonte única de verdade, sem latência, sem spoofing.</td>
+    </tr>
+  </table>
+
+  
+  <h2>6. Considerações de Segurança</h2>
+  <div class="callout warn">
+    <strong>O JWT é assinado (HS256) mas não criptografado.</strong> O campo <code>name</code> ficará visível em Base64 no cliente. Isso é aceitável — <code>name</code> é dado não sensível. <strong>Nunca incluir senha, CPF ou dados sensíveis no payload JWT.</strong>
+  </div>
+  <table>
+    <tr><th>Risco</th><th>Avaliação</th><th>Mitigação</th></tr>
+    <tr><td>Nome falso no token</td><td>Baixo</td><td>Token é assinado — alteração invalida a assinatura</td></tr>
+    <tr><td>Nome desatualizado (usuário mudou o nome)</td><td>Baixo</td><td>Token expira em 1h (staging: 1h). Próximo login atualiza.</td></tr>
+    <tr><td>Aumento de tamanho do token</td><td>Negligível</td><td>~50 bytes extras em Base64 — sem impacto prático</td></tr>
+  </table>
+
+  
+  <h2>7. Checklist de Implementação (auth-service)</h2>
+  <ul class="checklist">
+    <li>Localizar a função de geração de token no <code>auth-service</code> (provavelmente em <code>src/utils/token.js</code> ou similar)</li>
+    <li>Adicionar <code>name: user.name</code> (e opcionalmente <code>email: user.email</code>) no objeto passado para <code>jwt.sign()</code></li>
+    <li>Garantir que os 3 endpoints emissores (<code>/login</code>, <code>/register</code>, <code>/refresh</code>) usem a mesma função de geração</li>
+    <li>Atualizar os testes do auth-service para validar presença de <code>name</code> no payload decodificado</li>
+    <li>Fazer deploy em staging e confirmar via <code>POST /auth/login</code> + decodificação do token</li>
+    <li>Comunicar ao time do chat-service que a alteração está disponível em staging</li>
+  </ul>
+
+  <h2>8. Critério de Aceite</h2>
+  <div class="callout ok">
+    Após o deploy no staging, o seguinte comando deve retornar <code>name</code> no payload decodificado:
+  </div>
+  <pre><span class="comment"># Login no staging</span>
+$r = Invoke-RestMethod -Uri "https://upexperience.vibecodia.com.br/auth/login" `
+     -Method POST -ContentType "application/json" `
+     -Body '{"email":"aluno@upexperience.com.br","password":"senhaSegura123@"}'
+
+<span class="comment"># Decodificar payload JWT</span>
+$payload = $r.token.Split('.')[1]
+$padded = $payload.PadRight($payload.Length + (4 - $payload.Length % 4) % 4, '=')
+[System.Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($padded)) | ConvertFrom-Json
+
+<span class="comment"># Esperado após a alteração:</span>
+<span class="comment"># name  : Lucas Silva (Aluno Demo)   ← NOVO</span>
+<span class="comment"># email : aluno@upexperience.com.br  ← NOVO</span>
+<span class="comment"># sub   : 6a8f61c8c0b59c2c23d2c542</span>
+<span class="comment"># role  : aluno</span></pre>
+
+  <div class="divider"></div>
+
+  
+  <h2>9. Aprovação</h2>
+  <div class="signature-box">
+    <div class="sig-field">
+      <div class="sig-label">Solicitante — IBM Bob (DevOps Senior)</div>
+      <div class="sig-line"></div>
+      <div class="sig-name">IBM Bob / chat-service team</div>
+    </div>
+    <div class="sig-field">
+      <div class="sig-label">Aprovação — Tech Lead</div>
+      <div class="sig-line"></div>
+      <div class="sig-name">Tech Lead / auth-service owner</div>
+    </div>
+  </div>
+
+  <footer>Made with IBM Bob</footer>
+</div>
+</body>
+</html>

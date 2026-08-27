@@ -62,6 +62,8 @@ describe('Auth Routes - Integration Tests', () => {
       const decoded = jwt.verify(res.body.token, process.env.JWT_SECRET);
       expect(decoded.id).toBe(res.body.user._id);
       expect(decoded.sub).toBe(res.body.user._id);
+      expect(decoded.name).toBe('Lucas Pereira');
+      expect(decoded.email).toBe('lucas@example.com');
       expect(decoded.role).toBe('professor');
       expect(decoded.emailVerified).toBe(false);
     });
@@ -209,6 +211,8 @@ describe('Auth Routes - Integration Tests', () => {
 
       const decoded = jwt.verify(res.body.token, process.env.JWT_SECRET);
       expect(decoded.role).toBe('aluno');
+      expect(decoded.name).toBe('Usuario Login');
+      expect(decoded.email).toBe('login@example.com');
     });
 
     it('deve retornar 401 com mensagem genérica se a senha estiver errada', async () => {

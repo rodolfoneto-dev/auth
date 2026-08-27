@@ -22,6 +22,8 @@ const generateAccessToken = (user) => {
     {
       sub: user._id.toString(),
       id: user._id.toString(),
+      name: user.name || '',
+      email: user.email || '',
       role: user.role,
       status: user.status || 'active',
       emailVerified: Boolean(user.emailVerified),
@@ -1071,7 +1073,7 @@ router.post('/reset-password', recoveryLimiter, async (req, res) => {
  * /auth/validate:
  *   get:
  *     summary: Validação de token JWT (Contrato para outros microsserviços)
- *     description: Valida o token JWT fornecido no header Authorization e retorna o payload decodificado ({ id, role, emailVerified }). Utilizado por academy, adm, comms, etc.
+ *     description: Valida o token JWT fornecido no header Authorization e retorna o payload decodificado ({ id, name, email, role, emailVerified }). Utilizado por academy, adm, comms, chat, etc.
  *     tags:
  *       - Validação & Sessão
  *     security:
@@ -1093,6 +1095,12 @@ router.post('/reset-password', recoveryLimiter, async (req, res) => {
  *                     id:
  *                       type: string
  *                       example: 64f1a2b3c4d5e6f7a8b9c0d1
+ *                     name:
+ *                       type: string
+ *                       example: João Silva
+ *                     email:
+ *                       type: string
+ *                       example: joao@example.com
  *                     role:
  *                       type: string
  *                       example: professor
@@ -1107,6 +1115,8 @@ router.get('/validate', authenticate, (req, res) => {
     valid: true,
     user: {
       id: req.user.id,
+      name: req.user.name,
+      email: req.user.email,
       role: req.user.role,
       emailVerified: req.user.emailVerified,
     },

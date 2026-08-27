@@ -85,7 +85,18 @@ server.registerTool(
   async ({ userId = 'dev_user_mock_123', role = 'aluno', emailVerified = true, expiresIn = '7d' }) => {
     try {
       const secret = process.env.JWT_SECRET || 'dev_secret_jwt';
-      const token = jwt.sign({ id: userId, role, emailVerified }, secret, { expiresIn });
+      const token = jwt.sign(
+        {
+          sub: userId,
+          id: userId,
+          name: role === 'professor' ? 'Teacher Sarah Jenkins' : role === 'admin' ? 'Master Admin' : 'Lucas Silva (Aluno Demo)',
+          email: `${role}@upexperience.com.br`,
+          role,
+          emailVerified,
+        },
+        secret,
+        { expiresIn }
+      );
 
       return {
         content: [
