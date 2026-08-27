@@ -1,0 +1,16 @@
+#!/bin/sh
+
+echo "🔍 Executando verificações de qualidade pré-push (auth)..."
+
+# Rodar testes
+npm test
+
+RESULT=$?
+
+if [ $RESULT -ne 0 ]; then
+  echo "❌ Falha nos testes de auth. Push bloqueado."
+  exit 1
+fi
+
+echo "✅ Testes aprovados. Push liberado."
+exit 0
