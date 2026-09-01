@@ -2,15 +2,26 @@
 
 echo "🔍 Executando verificações de qualidade pré-push (auth)..."
 
-# Rodar testes
-npm test
-
-RESULT=$?
-
-if [ $RESULT -ne 0 ]; then
-  echo "❌ Falha nos testes de auth. Push bloqueado."
+echo "\n🧪 [1/3] Executando Testes Unitários..."
+npm run test:unit
+if [ $? -ne 0 ]; then
+  echo "❌ Falha nos testes unitários (auth). Push bloqueado."
   exit 1
 fi
 
-echo "✅ Testes aprovados. Push liberado."
+echo "\n🤖 [2/3] Executando Testes do MCP Server..."
+npm run test:mcp
+if [ $? -ne 0 ]; then
+  echo "❌ Falha nos testes do MCP Server (auth). Push bloqueado."
+  exit 1
+fi
+
+echo "\n🗄️  [3/3] Executando Testes de Integração & Mock DB..."
+npm run test:integration
+if [ $? -ne 0 ]; then
+  echo "❌ Falha nos testes de integração (auth). Push bloqueado."
+  exit 1
+fi
+
+echo "\n✅ Todas as verificações pré-push do auth foram aprovadas com sucesso! Push liberado."
 exit 0

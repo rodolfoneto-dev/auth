@@ -14,6 +14,8 @@ const getTestMongoUri = () => {
 
 const MONGO_URI = getTestMongoUri();
 process.env.JWT_SECRET = process.env.JWT_SECRET || 'test_secret';
+process.env.BLOCK_REGISTRATION = '0';
+process.env.VITE_BLOCK_REGISTRATION = '0';
 
 describe('Auth Routes - Integration Tests', () => {
   beforeAll(async () => {
