@@ -62,14 +62,16 @@ const generateAccessToken = (user) => {
  *         description: Desativado em produção
  */
 router.post('/demo-token', async (req, res) => {
-  // Guardrail de segurança: habilitado em staging/desenvolvimento ou via flag explícita
-  const isStagingOrDev =
-    process.env.APP_URL?.includes('vibecodia') ||
-    process.env.PUBLIC_URL?.includes('vibecodia') ||
-    process.env.NODE_ENV !== 'production' ||
-    process.env.ALLOW_DEV_TOKENS === 'true';
+  // Guardrail de segurança: habilitado em staging, development ou quando não for produção (prod/prd)
+  const appEnv = (process.env.APP_ENV || process.env.ENVIRONMENT || '').toLowerCase();
+  const nodeEnv = (process.env.NODE_ENV || 'development').toLowerCase();
 
-  if (!isStagingOrDev || process.env.ALLOW_DEV_TOKENS === 'false') {
+  const isStaging = appEnv === 'staging';
+  const isProduction = appEnv === 'production' || appEnv === 'prd' || (nodeEnv === 'production' && !isStaging);
+  const isExplicitlyAllowed = process.env.ALLOW_DEV_TOKENS === 'true';
+  const isExplicitlyBlocked = process.env.ALLOW_DEV_TOKENS === 'false';
+
+  if ((isProduction && !isExplicitlyAllowed) || isExplicitlyBlocked) {
     return res.status(403).json({
       error: 'FEATURE_DISABLED',
       message: 'A emissão de tokens demo está desativada em produção.',
