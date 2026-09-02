@@ -4,8 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "jest --testPathIgnorePatterns=integration",
-    "test:unit": "jest --testPathIgnorePatterns=integration",
+    "test": "jest --testPathIgnorePatterns=integration --runInBand",
+    "test:unit": "jest --testPathIgnorePatterns=integration --runInBand",
     "test:integration": "jest --testPathPatterns=integration --runInBand --testTimeout=30000 --forceExit",
     "test:all": "jest --runInBand",
     "test:mcp": "jest .ai/mcp/server.test.js",
