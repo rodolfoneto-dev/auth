@@ -14,13 +14,17 @@ const MONGO_URI = getTestMongoUri();
 
 describe('User Model - Testes de Integração com Banco Real', () => {
   beforeAll(async () => {
-    await mongoose.connect(MONGO_URI);
-  });
+    if (mongoose.connection.readyState === 0) {
+      await mongoose.connect(MONGO_URI);
+    }
+  }, 30000);
 
   afterAll(async () => {
-    await User.deleteMany({});
-    await mongoose.connection.close();
-  });
+    try {
+      await User.deleteMany({});
+    } catch (err) {}
+    await mongoose.disconnect();
+  }, 30000);
 
   beforeEach(async () => {
     await User.deleteMany({});

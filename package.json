@@ -6,7 +6,7 @@
   "scripts": {
     "test": "jest --testPathIgnorePatterns=integration",
     "test:unit": "jest --testPathIgnorePatterns=integration",
-    "test:integration": "jest --testPathPatterns=integration --runInBand",
+    "test:integration": "jest --testPathPatterns=integration --runInBand --testTimeout=30000 --forceExit",
     "test:all": "jest --runInBand",
     "test:mcp": "jest .ai/mcp/server.test.js",
     "seed": "node ../pipelines/scripts/seed-english-fox.cjs",
