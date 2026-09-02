@@ -24,6 +24,7 @@ log_error()   { echo -e "  ${COLOR_RED}✖ [ERRO]${COLOR_RESET} $1"; }
 # 1. Resolução dos Caminhos
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 MCP_SERVER_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
+SERVICE_DIR="$(cd "${MCP_SERVER_DIR}/../.." && pwd)"
 SERVER_JS_PATH="${MCP_SERVER_DIR}/server.js"
 SERVER_NAME="auth-service"
 
@@ -85,6 +86,14 @@ configure_mcp_json() {
     const filePath = process.argv[1];
     const serverName = process.argv[2];
     const serverPath = process.argv[3];
+    const serviceDir = process.argv[4];
+
+    let jwtSecret = process.env.JWT_SECRET || "";
+    const envFile = require("path").join(serviceDir, ".env");
+    if (!jwtSecret && fs.existsSync(envFile)) {
+      const match = fs.readFileSync(envFile, "utf-8").match(/^JWT_SECRET=["'\''"]?([^"'\''\r\n]+)["'\''"]?/m);
+      if (match) jwtSecret = match[1];
+    }
 
     let config = { mcpServers: {} };
     if (fs.existsSync(filePath)) {
@@ -105,13 +114,13 @@ configure_mcp_json() {
       args: [serverPath],
       env: {
         PORT: "4000",
-        JWT_SECRET: "eFPijJz8fVl7l+yexyBKoeOTe0nErVupx2fikv01PAY=",
+        JWT_SECRET: jwtSecret,
         APP_URL: "http://localhost:4000"
       }
     };
 
     fs.writeFileSync(filePath, JSON.stringify(config, null, 2) + "\n", "utf-8");
-  ' "${config_file}" "${SERVER_NAME}" "${SERVER_JS_PATH}"
+  ' "${config_file}" "${SERVER_NAME}" "${SERVER_JS_PATH}" "${SERVICE_DIR}"
 
   log_success "${target_app} configurado com sucesso!"
   TOTAL_CONFIGURED=$((TOTAL_CONFIGURED + 1))
