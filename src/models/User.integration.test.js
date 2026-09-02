@@ -53,12 +53,13 @@ describe('User Model - Testes de Integração com Banco Real', () => {
   });
 
   it('deve impedir criação de dois usuários com mesmo email (índice único)', async () => {
-    await User.init(); // Garante que índices do Mongoose estão criados no banco
+    await User.syncIndexes();
 
     const user1 = new User({
       name: 'Usuario 1',
       email: 'duplicado@example.com',
       password: 'password123',
+      role: 'aluno',
     });
     await user1.save();
 
@@ -66,6 +67,7 @@ describe('User Model - Testes de Integração com Banco Real', () => {
       name: 'Usuario 2',
       email: 'duplicado@example.com',
       password: 'password456',
+      role: 'aluno',
     });
 
     await expect(user2.save()).rejects.toThrow();
