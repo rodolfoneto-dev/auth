@@ -1,6 +1,7 @@
 const express = require('express');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
+const mongoose = require('mongoose');
 const User = require('../models/User');
 const Lead = require('../models/Lead');
 const AuditLog = require('../models/AuditLog');
@@ -34,6 +35,93 @@ const generateAccessToken = (user) => {
     { expiresIn: process.env.JWT_ACCESS_TOKEN_TTL || '7d' }
   );
 };
+
+/**
+ * @openapi
+ * /auth/demo-token:
+ *   post:
+ *     summary: Emissão de token para contas de teste/demo (Dev Portal)
+ *     description: Endpoint utilitário seguro para testes. Bloqueado em produção a menos que ALLOW_DEV_TOKENS=true.
+ *     tags:
+ *       - Autenticação
+ *     requestBody:
+ *       required: false
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               role:
+ *                 type: string
+ *                 enum: [aluno, professor, admin]
+ *                 default: admin
+ *     responses:
+ *       200:
+ *         description: Token emitido com sucesso
+ *       403:
+ *         description: Desativado em produção
+ */
+router.post('/demo-token', async (req, res) => {
+  // Guardrail de segurança: desativado em produção
+  if (process.env.NODE_ENV === 'production' && process.env.ALLOW_DEV_TOKENS !== 'true') {
+    return res.status(403).json({
+      error: 'FEATURE_DISABLED',
+      message: 'A emissão de tokens demo está desativada em produção.',
+    });
+  }
+
+  const role = (req.body && req.body.role) || 'admin';
+  if (!['aluno', 'professor', 'admin'].includes(role)) {
+    return res.status(400).json({
+      error: 'INVALID_ROLE',
+      message: 'Role inválida. Escolha entre: aluno, professor ou admin.',
+    });
+  }
+
+  const demoEmailMap = {
+    admin: 'admin@upexperience.com.br',
+    professor: 'professor@upexperience.com.br',
+    aluno: 'aluno@upexperience.com.br',
+  };
+  const targetEmail = demoEmailMap[role];
+
+  try {
+    let user = await User.findOne({ email: targetEmail });
+    if (!user) {
+      user = await User.findOne({ role });
+    }
+
+    if (!user) {
+      user = {
+        _id: new mongoose.Types.ObjectId(),
+        name: `Demo ${role.toUpperCase()}`,
+        email: targetEmail,
+        role: role,
+        status: 'active',
+        emailVerified: true,
+      };
+    }
+
+    const token = generateAccessToken(user);
+
+    return res.json({
+      status: 'ok',
+      token,
+      user: {
+        id: user._id.toString(),
+        name: user.name,
+        email: user.email,
+        role: user.role,
+      },
+      environment: process.env.NODE_ENV || 'staging',
+    });
+  } catch (err) {
+    return res.status(500).json({
+      error: 'INTERNAL_ERROR',
+      message: `Erro ao emitir token demo: ${err.message}`,
+    });
+  }
+});
 
 /**
  * @openapi
